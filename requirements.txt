@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+requests
+fpdf
+boto3
+cerebras_cloud_sdk
+elevenlabs
+python-multipart
+colorama
+websockets
