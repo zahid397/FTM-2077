@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FTM-2077 // OMEGA</title>
+
+    <link rel="stylesheet" href="css/cyberpunk.css">
+    <link rel="stylesheet" href="css/security.css">
+    <link rel="stylesheet" href="css/face_fx.css">
+</head>
+
+<body>
+
+<div id="login-screen">
+    <h1>FTM-2077 Access Portal</h1>
+    <input type="password" id="godKey" placeholder="Enter Access Key...">
+    <button onclick="unlockSystem()">Unlock</button>
+</div>
+
+<div id="system-ui" style="display:none;">
+    <canvas id="matrix"></canvas>
+
+    <div id="ai-face"></div>
+
+    <div class="terminal">
+        <h2>NEURAL TERMINAL</h2>
+        <textarea id="missionInput" placeholder="Enter mission directive..."></textarea>
+        <button onclick="sendMission()">EXECUTE</button>
+    </div>
+
+    <div class="output-box">
+        <h3>MISSION OUTPUT</h3>
+        <pre id="missionOutput">Awaiting command...</pre>
+    </div>
+</div>
+
+<script src="js/matrix.js"></script>
+<script src="js/face_core.js"></script>
+<script src="js/core.js"></script>
+<script src="js/security.js"></script>
+</body>
+</html>
