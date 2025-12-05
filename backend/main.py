@@ -7,6 +7,7 @@ import os
 
 sys.path.append(os.getcwd())
 
+# CONFIG + INTERNAL MODULES
 from backend.config import settings
 from backend.models.mission_model import MissionRequest
 from backend.utils.logger import sys_log
@@ -14,16 +15,27 @@ from backend.utils.log_stream import streamer
 from backend.core.fusion_engine import fusion
 from backend.services.security_engine import security
 
-# Safe Imports (Services)
+# Optional modules
 try: from backend.services.audio_engine import audio_engine
 except: audio_engine = None
+
 try: from backend.services.vultr_storage import vultr
 except: vultr = None
+
 try: from backend.services.report_engine import report_engine
 except: report_engine = None
 
-app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+# -----------------------
+# APP INITIALIZE
+# -----------------------
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION
+)
 
+# -----------------------
+# CORS
+# -----------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,23 +43,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -----------------------
+# STATIC (AUDIO FILES)
+# -----------------------
 app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
 
+
+# -----------------------
+# WEBSOCKET LOG STREAM
+# -----------------------
 @app.websocket("/ws/logs")
 async def log_stream(ws: WebSocket):
     await streamer.connect(ws)
     try:
-        while True: await ws.receive_text()
+        while True:
+            await ws.receive_text()
     except WebSocketDisconnect:
         streamer.disconnect(ws)
 
+
+# -----------------------
+# LOGIN MODEL
+# -----------------------
 class LoginRequest(BaseModel):
     password: str
 
+
+# -----------------------
+# ROOT
+# -----------------------
 @app.get("/")
 def root():
-    return {"system": "FTM-2077", "status": "ONLINE", "god_mode": settings.GOD_MODE}
+    return {
+        "system": "FTM-2077",
+        "status": "ONLINE",
+        "god_mode": settings.GOD_MODE
+    }
 
+
+# -----------------------
+# LOGIN
+# -----------------------
 @app.post("/auth/login")
 async def login(req: LoginRequest):
     res = security.login(req.password)
@@ -56,43 +92,66 @@ async def login(req: LoginRequest):
         await streamer.broadcast("⚡ GOD MODE ACTIVATED", "GOD")
     return res
 
+
+# -----------------------
+# MAIN EXECUTION
+# -----------------------
 @app.post(f"{settings.API_PREFIX}/execute")
 async def execute(req: MissionRequest):
     sys_log.log("CORE", f"CMD: {req.command} [{req.persona}]")
     await streamer.broadcast(f"Processing: {req.command}", "CORE")
 
-    # 1. Fusion
+    # 1. Fusion Engine
     result = fusion.process(req.command, req.persona)
 
-    # 2. Audio (Updated)
+    # 2. Audio
     if audio_engine:
-        result["audio"] = audio_engine.generate_voice(result["analysis"], req.persona)
+        result["audio"] = audio_engine.generate_voice(
+            result["analysis"],
+            req.persona
+        )
 
-    # 3. Report & Cloud (Updated)
+    # 3. Report + Cloud Upload
     if report_engine:
         try:
             rep = report_engine.create_mission_report(result)
             result["report_local"] = rep["path"]
-            
+
             if vultr:
-                cloud = vultr.upload_file(rep["path"], f"reports/{rep['report_id']}.json")
+                cloud = vultr.upload_file(
+                    rep["path"],
+                    f"reports/{rep['report_id']}.json"
+                )
                 if cloud:
                     result["cloud_report"] = cloud
                     await streamer.broadcast("Report Sent To Cloud", "CLOUD")
         except Exception as e:
             sys_log.log("ERROR", f"Report Failed: {e}")
 
-    await streamer.broadcast(f"Done. Probability: {result['probability']}%", "AI")
+    await streamer.broadcast(
+        f"Done. Probability: {result['probability']}%",
+        "AI"
+    )
+
     return result
 
+
+# -----------------------
+# TOGGLE GOD MODE
+# -----------------------
 @app.post(f"{settings.API_PREFIX}/godmode")
 async def toggle_god(key: str):
     if settings.validate_god_key(key):
         settings.GOD_MODE = not settings.GOD_MODE
         await streamer.broadcast(f"GOD MODE: {settings.GOD_MODE}", "GOD")
         return {"status": "SUCCESS", "god_mode": settings.GOD_MODE}
+
     return {"status": "ERROR"}
 
+
+# -----------------------
+# LOCAL RUN SUPPORT
+# -----------------------
 if __name__ == "__main__":
     import uvicorn
     print(f"🚀 Running on http://{settings.HOST}:{settings.PORT}")
