@@ -1,44 +1,68 @@
 import os
-import sys
 from dotenv import load_dotenv
 
 load_dotenv()
-sys.path.append(os.getcwd())
 
 class Settings:
-    PROJECT_NAME = "FTM-2077 OMEGA"
-    VERSION = "3.0.0"
-    API_PREFIX = "/api"
+    # -----------------------------------------------------
+    # BASIC PROJECT DETAILS
+    # -----------------------------------------------------
+    PROJECT_NAME: str = "FTM-2077 OMEGA"
+    VERSION: str = "2.0.77"
+    API_PREFIX: str = "/api"
 
-    try:
-        BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    except NameError:
-        BASE_DIR = os.getcwd()
+    # -----------------------------------------------------
+    # DIRECTORY PATHS
+    # -----------------------------------------------------
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    BACKEND_DIR = os.path.join(BASE_DIR, "backend")
-    STORAGE_DIR = os.path.join(BACKEND_DIR, "storage")
-    REPORT_DIR = os.path.join(STORAGE_DIR, "reports")
-    AUDIO_DIR = os.path.join(STORAGE_DIR, "audio")
+    AUDIO_DIR = os.path.join(ROOT_DIR, "backend/audio")
+    LOGS_DIR = os.path.join(ROOT_DIR, "backend/logs")
+    REPORT_DIR = os.path.join(ROOT_DIR, "backend/reports")
+    CACHE_DIR = os.path.join(ROOT_DIR, "backend/cache")
 
-    HOST = "0.0.0.0"
-    PORT = 8000
-    GOD_MODE = False
-    GOD_KEY = os.getenv("GOD_MODE_KEY", "OMEGA-777")
+    # -----------------------------------------------------
+    # NETWORK SETTINGS (IMPORTANT FOR RAINDROP)
+    # -----------------------------------------------------
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
 
-    CEREBRAS_KEY = os.getenv("CEREBRAS_API_KEY")
-    ELEVEN_KEY = os.getenv("ELEVENLABS_API_KEY")
-    
-    VULTR_ACCESS = os.getenv("VULTR_ACCESS_KEY")
-    VULTR_SECRET = os.getenv("VULTR_SECRET_KEY")
-    VULTR_BUCKET = os.getenv("VULTR_BUCKET_NAME")
-    VULTR_ENDPOINT = os.getenv("VULTR_ENDPOINT")
+    # -----------------------------------------------------
+    # SECURITY & GOD MODE
+    # -----------------------------------------------------
+    GOD_MODE: bool = False
+    GOD_MODE_KEY: str = os.getenv("GOD_MODE_KEY", "")
 
-    def validate_god_key(self, key: str):
-        if not key: return False
-        return key.strip() == self.GOD_KEY
+    def validate_god_key(self, key):
+        return key == self.GOD_MODE_KEY
+
+    # -----------------------------------------------------
+    # ELEVENLABS
+    # -----------------------------------------------------
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+    ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+
+    # -----------------------------------------------------
+    # VULTR STORAGE CONFIG
+    # -----------------------------------------------------
+    VULTR_ACCESS_KEY = os.getenv("VULTR_ACCESS_KEY", "")
+    VULTR_SECRET_KEY = os.getenv("VULTR_SECRET_KEY", "")
+    VULTR_BUCKET_NAME = os.getenv("VULTR_BUCKET_NAME", "")
+    VULTR_ENDPOINT = os.getenv("VULTR_ENDPOINT", "")
+
+    # -----------------------------------------------------
+    # LIQUIDMETAL RAINDROP
+    # -----------------------------------------------------
+    RAINDROP_API_KEY = os.getenv("RAINDROP_API_KEY", "")
+
+    # -----------------------------------------------------
+    # AUTO CREATE FOLDERS (NO CRASH)
+    # -----------------------------------------------------
+    def ensure_folders(self):
+        for d in [self.AUDIO_DIR, self.LOGS_DIR, self.REPORT_DIR, self.CACHE_DIR]:
+            os.makedirs(d, exist_ok=True)
+
 
 settings = Settings()
-
-os.makedirs(settings.STORAGE_DIR, exist_ok=True)
-os.makedirs(settings.REPORT_DIR, exist_ok=True)
-os.makedirs(settings.AUDIO_DIR, exist_ok=True)
+settings.ensure_folders()
