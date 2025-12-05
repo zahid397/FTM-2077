@@ -1,12 +1,9 @@
 fastapi
 uvicorn
 pydantic
-python-dotenv
 requests
-fpdf
-boto3
-cerebras_cloud_sdk
-elevenlabs
-python-multipart
+python-dotenv
 colorama
+typing
 websockets
+boto3
