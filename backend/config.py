@@ -12,18 +12,18 @@ class Settings:
     API_PREFIX: str = "/api"
 
     # -----------------------------------------------------
-    # DIRECTORY PATHS
+    # DIRECTORY PATHS (FIXED)
     # -----------------------------------------------------
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    BASE_DIR = os.path.join(ROOT_DIR, "backend")
 
-    AUDIO_DIR = os.path.join(ROOT_DIR, "backend/audio")
-    LOGS_DIR = os.path.join(ROOT_DIR, "backend/logs")
-    REPORT_DIR = os.path.join(ROOT_DIR, "backend/reports")
-    CACHE_DIR = os.path.join(ROOT_DIR, "backend/cache")
+    AUDIO_DIR = os.path.join(BASE_DIR, "audio")
+    LOGS_DIR = os.path.join(BASE_DIR, "logs")
+    REPORT_DIR = os.path.join(BASE_DIR, "reports")
+    CACHE_DIR = os.path.join(BASE_DIR, "cache")
 
     # -----------------------------------------------------
-    # NETWORK SETTINGS (IMPORTANT FOR RAINDROP)
+    # NETWORK SETTINGS
     # -----------------------------------------------------
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -40,16 +40,16 @@ class Settings:
     # -----------------------------------------------------
     # ELEVENLABS
     # -----------------------------------------------------
-    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+    ELEVENLABS_KEY = os.getenv("ELEVENLABS_API_KEY", "")
     ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
 
     # -----------------------------------------------------
-    # VULTR STORAGE CONFIG
+    # VULTR STORAGE CONFIG  (NAME FIXED)
     # -----------------------------------------------------
-    VULTR_ACCESS_KEY = os.getenv("VULTR_ACCESS_KEY", "")
-    VULTR_SECRET_KEY = os.getenv("VULTR_SECRET_KEY", "")
-    VULTR_BUCKET_NAME = os.getenv("VULTR_BUCKET_NAME", "")
-    VULTR_ENDPOINT = os.getenv("VULTR_ENDPOINT", "")
+    VULTR_ACCESS = os.getenv("VULTR_ACCESS_KEY", "")
+    VULTR_SECRET = os.getenv("VULTR_SECRET_KEY", "")
+    VULTR_BUCKET = os.getenv("VULTR_BUCKET_NAME", "")
+    VULTR_ENDPOINT = os.getenv("VULTR_ENDPOINT", "https://ewr1.vultrobjects.com")
 
     # -----------------------------------------------------
     # LIQUIDMETAL RAINDROP
