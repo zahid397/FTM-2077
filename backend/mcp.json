@@ -1,0 +1,48 @@
+{
+  "mcpServer": {
+    "name": "ftm-2077-backend",
+    "version": "1.0.0",
+    "description": "FTM-2077 Cyberpunk AI OS — Mission Engine + Audio Agent + Report Agent",
+    "entryPoint": "backend/main.py",
+    "pythonVersion": "3.10",
+    "dependencies": {
+      "fastapi": "0.115.2",
+      "uvicorn": "0.32.0",
+      "pydantic": "2.9.2",
+      "requests": "2.32.3",
+      "python-multipart": "0.0.9"
+    },
+    "environment": {
+      "HOST": "0.0.0.0",
+      "PORT": "8000",
+      "API_PREFIX": "/api",
+      "RAINDROP_API_KEY": "",
+      "VULTR_API_KEY": "",
+      "CEREBRAS_API_KEY": "",
+      "ELEVENLABS_API_KEY": ""
+    },
+    "permissions": {
+      "network": [
+        "https://api.vultr.com/*",
+        "https://api.cerebras.ai/*",
+        "https://api.raindrop.io/*",
+        "https://api.elevenlabs.io/*"
+      ],
+      "filesystem": {
+        "read": [
+          "backend/",
+          "storage/"
+        ],
+        "write": [
+          "storage/reports/",
+          "storage/audio/"
+        ]
+      }
+    },
+    "smartComponents": {
+      "smartMemory": true,
+      "smartBuckets": true,
+      "smartInference": true
+    }
+  }
+}
