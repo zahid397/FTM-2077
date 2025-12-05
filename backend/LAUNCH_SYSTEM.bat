@@ -3,51 +3,64 @@ title FTM-2077 // SYSTEM LAUNCHER
 color 0a
 cls
 
-:: ---------------------------------------------------
-:: FTM-2077 BOOT SEQUENCE
-:: ---------------------------------------------------
-
 echo.
-echo  =======================================================
-echo   FTM-2077 // NEURAL LINK ESTABLISHED
-echo  =======================================================
+echo =======================================================
+echo           FTM-2077 // OMEGA  SYSTEM BOOTING
+echo =======================================================
 echo.
 
-:: 1. Script er nijer folder e dhukbe (Path fix)
+:: Move script directory
 cd /d "%~dp0"
 
-:: 2. Dependencies Install/Check korbe
-echo  [*] SCANNING PYTHON MODULES...
-pip install -r requirements.txt
+:: 1. Python check
+echo [*] Checking Python...
+python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo.
-    echo  [!] CRITICAL ERROR: Python Libraries missing.
-    echo  [!] Make sure Python is installed and added to PATH.
+    echo [ERROR] Python not found! Install Python 3.10+ and retry.
     pause
     exit
 )
-echo  [OK] MODULES INTEGRATED.
-echo.
 
-:: 3. Folder Structure Setup korbe
-echo  [*] INITIALIZING FILE SYSTEMS...
+:: 2. Install dependencies
+echo [*] Installing Dependencies...
+pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to install dependencies.
+    pause
+    exit
+)
+echo [OK] Dependencies loaded.
+
+:: 3. Initialize Folder Structure
+echo [*] Initializing System Folders...
 python setup_final.py
-echo  [OK] SYSTEM READY.
+echo [OK] File System Ready.
+
+:: 4. Launch Frontend UI
+echo [*] Launching Visual Interface...
+start "" http://localhost:5500/frontend/index.html
+
+:: 5. Start Backend Server (Correct Way)
+echo.
+echo ---------------------------------------------------------
+echo   BACKEND SERVER LIVE:  http://localhost:8000
+echo   PRESS CTRL+C TO STOP SERVER
+echo ---------------------------------------------------------
 echo.
 
-:: 4. Frontend (HTML) ta Browser e open korbe
-echo  [*] BOOTING VISUAL INTERFACE...
-start "" "frontend/index.html"
+:: Fix Path for VSCode live-server
+:: If live-server installed → use it
+where live-server >nul 2>&1
+if %errorlevel% == 0 (
+    echo [*] Starting Local Frontend Server (live-server)...
+    start "" live-server --port=5500 --no-browser
+) else (
+    echo [WARN] live-server not installed. Install using:
+    echo        npm install -g live-server
+    echo.
+)
 
-:: 5. Backend Server Start korbe
-echo  [*] CONNECTING TO MAINFRAME (Server)...
-echo  -------------------------------------------------------
-echo  [LOG] Server running at: http://localhost:8000
-echo  [LOG] Press CTRL+C to Shutdown.
-echo  -------------------------------------------------------
-echo.
-
-:: Uvicorn start via Python
-python backend/main.py
+:: Start API
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 pause
