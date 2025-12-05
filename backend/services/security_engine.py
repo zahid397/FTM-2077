@@ -1,25 +1,65 @@
 from backend.config import settings
 from datetime import datetime, timedelta
+import hashlib
+
 
 class SecurityEngine:
     def __init__(self):
-        self.failed_attempts = 0
-        self.blocked_until = None
+        self.failed_attempts = {}
+        self.blocked_until = {}
 
-    def login(self, pwd):
-        if self.blocked_until and datetime.now() < self.blocked_until:
-            return {"status": "BLOCKED", "message": "Too many attempts."}
+    # -------------------------
+    # Hash Function (SHA256)
+    # -------------------------
+    def hash(self, text: str):
+        return hashlib.sha256(text.encode()).hexdigest()
 
-        if settings.validate_god_key(pwd):
-            self.failed_attempts = 0
-            return {"status": "SUCCESS", "mode": "GOD", "message": "God mode access granted."}
+    # -------------------------
+    # Validate Key
+    # -------------------------
+    def validate_god_key(self, input_key):
+        if not settings.GOD_KEY:
+            return False
+        return self.hash(input_key) == self.hash(settings.GOD_KEY)
 
-        self.failed_attempts += 1
-        if self.failed_attempts >= 5:
-            self.blocked_until = datetime.now() + timedelta(seconds=30)
-            self.failed_attempts = 0
-            return {"status": "BLOCKED", "message": "Blocked for 30s."}
+    # -------------------------
+    # Login Handler
+    # -------------------------
+    def login(self, pwd: str, ip: str = "LOCAL"):
+        now = datetime.now()
 
-        return {"status": "ERROR", "message": "Invalid password"}
+        # BLOCK CHECK
+        if ip in self.blocked_until and now < self.blocked_until[ip]:
+            remaining = int((self.blocked_until[ip] - now).total_seconds())
+            return {
+                "status": "BLOCKED",
+                "message": f"Too many attempts. Try again in {remaining}s."
+            }
+
+        # SUCCESS CASE
+        if self.validate_god_key(pwd):
+            self.failed_attempts[ip] = 0
+            return {
+                "status": "SUCCESS",
+                "mode": "GOD",
+                "message": "GOD MODE ACTIVATED."
+            }
+
+        # FAILURE CASE
+        self.failed_attempts[ip] = self.failed_attempts.get(ip, 0) + 1
+
+        if self.failed_attempts[ip] >= 5:
+            self.blocked_until[ip] = now + timedelta(seconds=30)
+            self.failed_attempts[ip] = 0
+            return {
+                "status": "BLOCKED",
+                "message": "Locked for 30 seconds."
+            }
+
+        return {
+            "status": "ERROR",
+            "message": "Invalid password."
+        }
+
 
 security = SecurityEngine()
