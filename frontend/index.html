@@ -2,220 +2,167 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>FTM-2077 SECURE TERMINAL</title>
+<title>FTM-2077 Voice Console</title>
 
 <style>
-/* ================= GLOBAL STYLES ================= */
-* { box-sizing: border-box; }
-
 body {
     margin: 0;
-    padding: 0;
     background: black;
     color: #0f0;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: monospace;
     overflow: hidden;
-    height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.8; }
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
 
-/* ================= LOGIN SCREEN ================= */
-#login-screen {
-    z-index: 100;
-    text-align: center;
-    background: rgba(0, 10, 0, 0.9);
-    padding: 40px;
-    border: 2px solid #0f0;
-    box-shadow: 0 0 20px #0f0;
-    border-radius: 10px;
+.container {
+    position: absolute;
+    bottom: 30px;
+    left: 20px;
     width: 90%;
-    max-width: 400px;
-}
-#godKey {
-    background: black; border: 1px solid #0f0; color: #0f0; padding: 10px;
-    width: 100%; font-family: inherit; font-size: 18px; text-align: center;
-    margin: 20px 0; outline: none;
+    max-width: 420px;
 }
 
-/* ================= MAIN SYSTEM UI ================= */
-#system-ui {
-    display: none; width: 100%; height: 100%; flex-direction: column; padding: 15px; z-index: 10;
-}
-.output-box {
-    flex-grow: 1; border: 2px solid #0f0; background: rgba(0, 20, 0, 0.75);
-    padding: 15px; margin-bottom: 15px; overflow-y: auto;
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2); border-radius: 5px;
-    font-size: 14px; line-height: 1.5;
-}
-.input-container {
-    border: 2px solid #0f0; background: black; padding: 10px;
-    display: flex; flex-direction: column;
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4); border-radius: 5px;
-}
 textarea {
-    width: 100%; height: 50px; background: transparent; border: none;
-    color: #0f0; font-family: inherit; font-size: 16px; resize: none; outline: none;
+    width: 100%;
+    height: 90px;
+    background: black;
+    color: #0f0;
+    border: 2px solid #0f0;
+    padding: 10px;
+    box-sizing: border-box;
 }
+
 button {
-    background: #003300; border: 1px solid #0f0; color: #0f0; padding: 12px;
-    font-weight: bold; cursor: pointer; text-transform: uppercase;
-    transition: 0.2s; width: 100%; margin-top: 10px;
+    margin-top: 10px;
+    background: black;
+    border: 2px solid #0f0;
+    color: #0f0;
+    padding: 10px;
+    cursor: pointer;
+    width: 100%;
 }
-button:active { background: #0f0; color: black; }
-button:disabled { opacity: 0.6; cursor: wait; }
 
-/* Play Button specific style */
+.output {
+    position: absolute;
+    bottom: 30px;
+    right: 20px;
+    width: 90%;
+    max-width: 420px;
+    height: 260px;
+    border: 2px solid #0f0;
+    padding: 10px;
+    overflow-y: auto;
+}
+
 #playVoiceBtn {
-    background: #444400; color: #ffff00; border-color: #ffff00;
-    animation: pulse 1.5s infinite; display: none;
+    display: none;
+    margin-top: 10px;
 }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-#voicePlayer { display: none; }
 </style>
 </head>
 
 <body>
 
 <canvas id="matrix"></canvas>
-<audio id="voicePlayer"></audio>
 
-<div id="login-screen">
-    <h2>RESTRICTED ACCESS</h2>
-    <input type="password" id="godKey" placeholder="ENTER ACCESS KEY">
-    <button onclick="unlockSystem()">AUTHENTICATE</button>
-    <p id="loginMsg" style="color:red; font-size:12px; height:15px;"></p>
+<div class="container">
+    <h3>NEURAL TERMINAL</h3>
+    <textarea id="missionInput" placeholder="Enter mission directive..."></textarea>
+    <button onclick="sendMission()">EXECUTE</button>
+    <button id="playVoiceBtn">🔊 PLAY VOICE</button>
 </div>
 
-<div id="system-ui">
-    <div class="output-box" id="scrollBox">
-        <h3 style="margin-top:0; border-bottom:1px dashed #0f0;">NEURAL TERMINAL V2.0</h3>
-        <pre id="missionOutput" style="white-space: pre-wrap;">System Locked. Awaiting Authorization...</pre>
-    </div>
-
-    <div class="input-container">
-        <div style="font-size:12px; background:#002200; display:inline-block; padding:2px;">COMMANDER@FTM-2077</div>
-        <textarea id="missionInput" placeholder="Enter directive..."></textarea>
-        
-        <button onclick="sendMission()" id="execBtn">EXECUTE</button>
-        <button id="playVoiceBtn">🔊 AUDIO RECEIVED - TAP TO PLAY</button>
-    </div>
+<div class="output">
+    <h3>MISSION OUTPUT</h3>
+    <pre id="missionOutput">Awaiting command...</pre>
 </div>
 
 <script>
-// ================= CONFIG =================
-const API = "https://ftm-2077.onrender.com"; 
-const voicePlayer = document.getElementById("voicePlayer");
-const playBtn = document.getElementById("playVoiceBtn");
+// ===============================
+// CONFIG
+// ===============================
+const API = "https://ftm-2077.onrender.com/api"; 
+// ⬆️ CHANGE ONLY IF BACKEND URL CHANGES
+
 let lastAudioUrl = null;
+let audioPlayer = new Audio();
 
-// ================= LOGIN & SETUP =================
-function unlockSystem() {
-    const key = document.getElementById("godKey").value.trim();
-    if (key === "OMEGA-777") {
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("system-ui").style.display = "flex";
-        document.body.style.overflow = "hidden"; // Fix scroll
-        
-        // Boot Text
-        const out = document.getElementById("missionOutput");
-        out.innerText = "AUTHORIZATION ACCEPTED.\nINITIALIZING AI CORE...\nCONNECTING TO SERVER...\nONLINE.";
-    } else {
-        document.getElementById("loginMsg").innerText = "ACCESS DENIED";
-    }
-}
-
-// ================= SEND MISSION (FINAL LOGIC) =================
-async function sendMission() {
-    const input = document.getElementById("missionInput");
-    const output = document.getElementById("missionOutput");
-    const execBtn = document.getElementById("execBtn");
-    
-    const text = input.value.trim();
-    if (!text) return;
-
-    // UI Reset
-    output.innerText += `\n\n> Sending: ${text}...`;
-    input.value = "";
-    execBtn.disabled = true;
-    execBtn.innerText = "PROCESSING...";
-    playBtn.style.display = "none"; // Hide previous play button
-    
-    // Auto Scroll
-    const scrollBox = document.getElementById("scrollBox");
-    scrollBox.scrollTop = scrollBox.scrollHeight;
-
-    try {
-        // Correct API Path
-        const res = await fetch(`${API}/api/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ command: text, persona: "JARVIS" })
-        });
-
-        if (!res.ok) throw new Error("Backend Error");
-        const data = await res.json();
-
-        output.innerText += `\n> RESPONSE:\n${JSON.stringify(data, null, 2)}`;
-
-        // 🔊 AUDIO LOGIC (The "No-BS" Fix)
-        if (data.audio) {
-            lastAudioUrl = data.audio.startsWith("http") ? data.audio : `${API}${data.audio}`;
-            
-            voicePlayer.src = lastAudioUrl;
-            voicePlayer.load(); // Important for mobile
-
-            // Try Autoplay
-            voicePlayer.play().then(() => {
-                // Success: Audio playing, keep button hidden
-                playBtn.style.display = "none";
-            }).catch(() => {
-                // Blocked: Show button for manual play
-                console.warn("Autoplay blocked. Showing button.");
-                playBtn.style.display = "block";
-            });
-        }
-
-    } catch (err) {
-        output.innerText += "\n❌ ERROR: System Failure.";
-    } finally {
-        execBtn.disabled = false;
-        execBtn.innerText = "EXECUTE";
-        scrollBox.scrollTop = scrollBox.scrollHeight;
-    }
-}
-
-// ================= MANUAL PLAY HANDLER =================
-playBtn.onclick = () => {
-    if (lastAudioUrl) {
-        voicePlayer.play();
-        playBtn.style.display = "none"; // Hide after playing
-    }
-};
-
-// ================= MATRIX VISUALS =================
+// ===============================
+// MATRIX BACKGROUND
+// ===============================
 const canvas = document.getElementById("matrix");
 const ctx = canvas.getContext("2d");
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-const letters = "01FTM2077Ω";
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const letters = "01FTM2077ΩΔ";
 const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+
 function drawMatrix() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0f0"; ctx.font = "14px monospace";
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = "16px monospace";
+
     drops.forEach((y, i) => {
         const text = letters[Math.floor(Math.random() * letters.length)];
         ctx.fillText(text, i * 20, y * 20);
-        if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0; drops[i]++;
+        drops[i] = y * 20 > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
     });
 }
 setInterval(drawMatrix, 50);
+
+// ===============================
+// SEND COMMAND + RECEIVE VOICE
+// ===============================
+async function sendMission() {
+    const text = document.getElementById("missionInput").value.trim();
+    if (!text) return;
+
+    document.getElementById("missionOutput").innerText = "Processing...";
+    document.getElementById("playVoiceBtn").style.display = "none";
+
+    try {
+        const res = await fetch(`${API}/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                command: text,
+                persona: "JARVIS"
+            })
+        });
+
+        const data = await res.json();
+        document.getElementById("missionOutput").innerText =
+            JSON.stringify(data, null, 2);
+
+        if (data.audio) {
+            lastAudioUrl = API.replace("/api", "") + data.audio;
+            document.getElementById("playVoiceBtn").style.display = "block";
+        }
+
+    } catch (err) {
+        document.getElementById("missionOutput").innerText =
+            "❌ Backend unreachable";
+    }
+}
+
+// ===============================
+// PLAY VOICE (MOBILE SAFE)
+// ===============================
+document.getElementById("playVoiceBtn").onclick = () => {
+    if (!lastAudioUrl) return;
+    audioPlayer.src = lastAudioUrl;
+    audioPlayer.play();
+};
 </script>
+
 </body>
 </html>
