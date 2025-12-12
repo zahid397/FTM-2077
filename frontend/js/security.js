@@ -2,9 +2,11 @@ async function unlockSystem() {
     const key = document.getElementById("godKey").value;
 
     try {
-        const res = await fetch(`${BACKEND}/auth/login`, {
+        const res = await fetch(`${window.BACKEND}/auth/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify({ password: key })
         });
 
@@ -17,8 +19,9 @@ async function unlockSystem() {
         } else {
             alert("ACCESS DENIED");
         }
-    } catch (e) {
+
+    } catch (err) {
         alert("Backend unreachable");
-        console.error(e);
+        console.error("FETCH ERROR:", err);
     }
 }
