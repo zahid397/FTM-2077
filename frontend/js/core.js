@@ -1,28 +1,64 @@
-// ===============================
-// FTM-2077 :: CORE INTERFACE
-// ===============================
+// ================================
+// CONFIG
+// ================================
+const API_BASE = "https://ftm-2077.onrender.com"; 
+// ⚠️ backend root URL — ঠিক আছে যেটা তুই screenshot এ দেখাইছিস
 
-// 🔗 BACKEND BASE URL (Render)
-const API_BASE = "https://ftm-2077.onrender.com";
+// ================================
+// UNLOCK SYSTEM
+// ================================
+function unlockSystem() {
+    const key = document.getElementById("godKey").value.trim();
 
-// 🎭 Default Persona
-let ACTIVE_PERSONA = "JARVIS";
-
-// -------------------------------
-// SEND MISSION TO BACKEND
-// -------------------------------
-async function sendMission() {
-    const input = document.getElementById("missionInput");
-    const output = document.getElementById("missionOutput");
-
-    const command = input.value.trim();
-    if (!command) {
-        output.innerText = "⚠️ No command entered.";
+    if (!key) {
+        alert("Enter access key");
         return;
     }
 
-    output.innerText = "⏳ Processing...";
-    input.value = "";
+    // Frontend-only unlock (visual)
+    if (key === "OMEGA-777") {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("system-ui").style.display = "block";
+
+        if (typeof bootFace === "function") {
+            bootFace();
+        }
+
+        return;
+    }
+
+    alert("Invalid Key");
+}
+
+// ================================
+// AUDIO PLAYER (MOBILE SAFE)
+// ================================
+function playVoice(audioUrl) {
+    if (!audioUrl) return;
+
+    try {
+        const audio = new Audio(audioUrl);
+        audio.volume = 1.0;
+
+        audio.play().catch(err => {
+            console.warn("Audio autoplay blocked:", err);
+        });
+    } catch (e) {
+        console.error("Audio error:", e);
+    }
+}
+
+// ================================
+// SEND MISSION
+// ================================
+async function sendMission() {
+    const inputEl = document.getElementById("missionInput");
+    const outputEl = document.getElementById("missionOutput");
+
+    const command = inputEl.value.trim();
+    if (!command) return;
+
+    outputEl.textContent = "Processing...\n";
 
     try {
         const res = await fetch(`${API_BASE}/api/execute`, {
@@ -32,61 +68,59 @@ async function sendMission() {
             },
             body: JSON.stringify({
                 command: command,
-                persona: ACTIVE_PERSONA
+                persona: "JARVIS"
             })
         });
 
         if (!res.ok) {
-            throw new Error("Backend error");
+            throw new Error("Backend unreachable");
         }
 
         const data = await res.json();
 
-        // 🧠 Show analysis
-        let display = "";
-        display += `STATUS      : ${data.status}\n`;
-        display += `PERSONA     : ${data.persona}\n`;
-        display += `COMMAND     : ${data.command}\n\n`;
-        display += `ANALYSIS:\n${data.analysis || "No analysis"}\n\n`;
-        display += `PROBABILITY : ${data.probability || 0}%\n`;
+        // Pretty output
+        let text = "";
+        if (data.status) text += `STATUS       : ${data.status}\n`;
+        if (data.persona) text += `PERSONA      : ${data.persona}\n`;
+        if (data.command) text += `COMMAND      : ${data.command}\n\n`;
 
-        // 🔊 Audio info
+        if (data.analysis) {
+            text += `ANALYSIS:\n${data.analysis}\n\n`;
+        }
+
+        if (data.probability !== undefined) {
+            text += `PROBABILITY  : ${data.probability}%\n`;
+        }
+
         if (data.audio) {
-            display += `\nAUDIO FILE  : ${data.audio}\n`;
+            text += `AUDIO FILE   : ${data.audio}\n`;
+        }
+
+        outputEl.textContent = text || JSON.stringify(data, null, 2);
+
+        // 🔊 PLAY VOICE
+        if (data.audio) {
             playVoice(data.audio);
         }
 
-        output.innerText = display;
-
     } catch (err) {
         console.error(err);
-        output.innerText = "❌ Backend unreachable or error occurred.";
         alert("Backend unreachable");
     }
 }
 
-// -------------------------------
-// PLAY GENERATED VOICE
-// -------------------------------
-function playVoice(path) {
-    try {
-        const audio = new Audio(`${API_BASE}${path}`);
-        audio.play();
-    } catch (e) {
-        console.warn("Audio playback failed", e);
+// ================================
+// ENTER KEY SUPPORT
+// ================================
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("missionInput");
+
+    if (input) {
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMission();
+            }
+        });
     }
-}
-
-// -------------------------------
-// PERSONA SWITCH (OPTIONAL)
-// -------------------------------
-function setPersona(p) {
-    ACTIVE_PERSONA = p.toUpperCase();
-    document.getElementById("missionOutput").innerText =
-        `Persona switched to ${ACTIVE_PERSONA}`;
-}
-
-// -------------------------------
-// SYSTEM BOOT CONFIRM
-// -------------------------------
-console.log("🟢 FTM-2077 CORE LOADED");
+});
