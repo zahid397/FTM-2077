@@ -1,68 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FTM-2077 Mission Control</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: white; }
-        input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; }
-        button:hover { background: #0056b3; }
-        #output { background: #333; padding: 15px; margin-top: 10px; white-space: pre-wrap; border-radius: 5px; }
-        audio { margin-top: 15px; width: 100%; display: none; }
-    </style>
+    <meta charset="UTF-8" />
+    <title>FTM-2077 // OMEGA CORE</title>
+
+    <!-- META -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/cyberpunk.css" />
+    <link rel="stylesheet" href="css/security.css" />
 </head>
+
 <body>
 
-    <h1>🚀 FTM-2077 Control</h1>
-    
-    <input type="text" id="cmd" placeholder="Type your command (e.g., Hello Jarvis)...">
-    <button onclick="sendMission()">Send Mission</button>
+<!-- ================= LOGIN SCREEN ================= -->
+<div id="login-screen">
+    <h1>FTM-2077 Access Portal</h1>
+    <input
+        type="password"
+        id="godKey"
+        placeholder="Enter Access Key..."
+        autocomplete="off"
+    />
+    <button onclick="unlockSystem()">Unlock</button>
+</div>
 
-    <audio id="voicePlayer" controls></audio>
+<!-- ================= SYSTEM UI ================= -->
+<div id="system-ui" style="display:none;">
 
-    <div id="output">Waiting for command...</div>
+    <!-- MATRIX BACKGROUND -->
+    <canvas id="matrix"></canvas>
 
-    <script>
-        const BASE_URL = "https://ftm-2077.onrender.com"; 
-        const API_URL = `${BASE_URL}/api`;
+    <!-- AI FACE -->
+    <div id="ai-face"></div>
 
-        async function sendMission() {
-            const cmdInput = document.getElementById("cmd");
-            const output = document.getElementById("output");
-            const player = document.getElementById("voicePlayer");
-            const cmd = cmdInput.value.trim();
+    <!-- TERMINAL -->
+    <div class="terminal">
+        <h2>NEURAL TERMINAL</h2>
+        <textarea
+            id="missionInput"
+            placeholder="Enter mission directive..."
+        ></textarea>
+        <button onclick="sendMission()">EXECUTE</button>
+    </div>
 
-            if (!cmd) { alert("Please enter a command!"); return; }
+    <!-- OUTPUT -->
+    <div class="output-box">
+        <h3>MISSION OUTPUT</h3>
+        <pre id="missionOutput">Awaiting command...</pre>
+    </div>
 
-            output.textContent = "Processing... ⏳";
-            
-            try {
-                const res = await fetch(`${API_URL}/execute`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ command: cmd, persona: "JARVIS" })
-                });
+</div>
 
-                if (!res.ok) throw new Error("Network response was not ok");
+<!-- ================= AUDIO PLAYER (HIDDEN) ================= -->
+<audio id="voicePlayer" autoplay></audio>
 
-                const data = await res.json();
-                output.textContent = JSON.stringify(data, null, 2);
+<!-- ================= JS ================= -->
+<script src="js/matrix.js"></script>
+<script src="js/face_core.js"></script>
+<script src="js/core.js"></script>
+<script src="js/security.js"></script>
 
-                if (data.audio) {
-                    // অডিও পাথ ঠিক করা
-                    const audioSrc = data.audio.startsWith("http") ? data.audio : `${BASE_URL}${data.audio}`;
-                    player.src = audioSrc;
-                    player.style.display = "block";
-                    player.play().catch(e => console.log("Click play to hear audio"));
-                }
-
-            } catch (err) {
-                output.textContent = "Error: Backend unreachable ❌";
-                console.error(err);
-            }
-        }
-    </script>
 </body>
 </html>
