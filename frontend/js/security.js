@@ -1,21 +1,15 @@
-// ================================
-// SECURITY CORE :: FTM-2077
-// ================================
-
-const API = "https://ftm-2077.onrender.com";
+const BACKEND = "https://ftm-2077.onrender.com"; // তোমার backend URL
 
 async function unlockSystem() {
-    const keyInput = document.getElementById("godKey");
-    if (!keyInput) return;
+    const key = document.getElementById("godKey").value;
 
-    const key = keyInput.value.trim();
-    if (!key) {
+    if (!key.trim()) {
         alert("Enter access key");
         return;
     }
 
     try {
-        const res = await fetch(`${API}/auth/login`, {
+        const res = await fetch(`${BACKEND}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: key })
@@ -24,19 +18,15 @@ async function unlockSystem() {
         const data = await res.json();
 
         if (data.status === "SUCCESS") {
-            // UI unlock
             document.getElementById("login-screen").style.display = "none";
             document.getElementById("system-ui").style.display = "block";
 
-            // Visual boot
-            if (typeof bootFace === "function") bootFace();
-            if (typeof matrixIdleMode === "function") matrixIdleMode();
-
+            bootFace(); // AI face init
         } else {
-            alert("❌ Invalid access key");
+            alert("ACCESS DENIED");
         }
 
     } catch (err) {
-        alert("⚠️ Backend not reachable");
+        alert("Backend unreachable");
     }
 }
