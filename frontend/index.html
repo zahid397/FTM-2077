@@ -15,21 +15,14 @@ body {
     background: black;
     color: #0f0;
     font-family: 'Courier New', Courier, monospace;
-    overflow: hidden; /* App-like feel */
+    overflow: hidden;
     height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* ================= MATRIX BACKGROUND ================= */
-canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -1;
-    opacity: 0.8;
-}
+canvas { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.8; }
 
 /* ================= LOGIN SCREEN ================= */
 #login-screen {
@@ -43,97 +36,53 @@ canvas {
     width: 90%;
     max-width: 400px;
 }
-
-#login-screen h2 {
-    margin: 0 0 20px 0;
-    text-shadow: 0 0 10px #0f0;
-    letter-spacing: 2px;
-}
-
 #godKey {
-    background: black;
-    border: 1px solid #0f0;
-    color: #0f0;
-    padding: 10px;
-    width: 100%;
-    font-family: inherit;
-    font-size: 18px;
-    text-align: center;
-    margin-bottom: 20px;
-    outline: none;
+    background: black; border: 1px solid #0f0; color: #0f0; padding: 10px;
+    width: 100%; font-family: inherit; font-size: 18px; text-align: center;
+    margin: 20px 0; outline: none;
 }
 
 /* ================= MAIN SYSTEM UI ================= */
 #system-ui {
-    display: none;
-    width: 100%;
-    height: 100%;
-    flex-direction: column;
-    padding: 15px;
-    z-index: 10;
+    display: none; width: 100%; height: 100%; flex-direction: column; padding: 15px; z-index: 10;
 }
-
 .output-box {
-    flex-grow: 1;
-    border: 2px solid #0f0;
-    background: rgba(0, 20, 0, 0.75);
-    padding: 15px;
-    margin-bottom: 15px;
-    overflow-y: auto; /* Internal scrolling */
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
-    border-radius: 5px;
-    font-size: 14px;
-    line-height: 1.5;
+    flex-grow: 1; border: 2px solid #0f0; background: rgba(0, 20, 0, 0.75);
+    padding: 15px; margin-bottom: 15px; overflow-y: auto;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2); border-radius: 5px;
+    font-size: 14px; line-height: 1.5;
 }
-
 .input-container {
-    border: 2px solid #0f0;
-    background: black;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
-    border-radius: 5px;
+    border: 2px solid #0f0; background: black; padding: 10px;
+    display: flex; flex-direction: column;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4); border-radius: 5px;
 }
-
 textarea {
-    width: 100%;
-    height: 50px;
-    background: transparent;
-    border: none;
-    color: #0f0;
-    font-family: inherit;
-    font-size: 16px;
-    resize: none;
-    outline: none;
+    width: 100%; height: 50px; background: transparent; border: none;
+    color: #0f0; font-family: inherit; font-size: 16px; resize: none; outline: none;
 }
-
 button {
-    background: #003300;
-    border: 1px solid #0f0;
-    color: #0f0;
-    padding: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: 0.2s;
-    width: 100%;
-    margin-top: 10px;
+    background: #003300; border: 1px solid #0f0; color: #0f0; padding: 12px;
+    font-weight: bold; cursor: pointer; text-transform: uppercase;
+    transition: 0.2s; width: 100%; margin-top: 10px;
 }
-
 button:active { background: #0f0; color: black; }
 button:disabled { opacity: 0.6; cursor: wait; }
 
-/* Hidden Audio Player */
-#voicePlayer { display: none; }
+/* Play Button specific style */
+#playVoiceBtn {
+    background: #444400; color: #ffff00; border-color: #ffff00;
+    animation: pulse 1.5s infinite; display: none;
+}
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
+#voicePlayer { display: none; }
 </style>
 </head>
 
 <body>
 
 <canvas id="matrix"></canvas>
-
 <audio id="voicePlayer"></audio>
 
 <div id="login-screen">
@@ -152,7 +101,9 @@ button:disabled { opacity: 0.6; cursor: wait; }
     <div class="input-container">
         <div style="font-size:12px; background:#002200; display:inline-block; padding:2px;">COMMANDER@FTM-2077</div>
         <textarea id="missionInput" placeholder="Enter directive..."></textarea>
+        
         <button onclick="sendMission()" id="execBtn">EXECUTE</button>
+        <button id="playVoiceBtn">🔊 AUDIO RECEIVED - TAP TO PLAY</button>
     </div>
 </div>
 
@@ -160,112 +111,78 @@ button:disabled { opacity: 0.6; cursor: wait; }
 // ================= CONFIG =================
 const API = "https://ftm-2077.onrender.com"; 
 const voicePlayer = document.getElementById("voicePlayer");
-voicePlayer.preload = "auto";
-let audioUnlocked = false;
+const playBtn = document.getElementById("playVoiceBtn");
+let lastAudioUrl = null;
 
-// ================= AUDIO UNLOCK (MOBILE FIX) =================
-function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
-
-    // Silent 1-frame WAV
-    const silentWav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
-
-    voicePlayer.src = silentWav;
-    voicePlayer.load(); // Ensure buffer readiness
-    voicePlayer.play().then(() => {
-        voicePlayer.pause();
-        voicePlayer.currentTime = 0;
-        console.log("Audio Engine Unlocked 🔓");
-    }).catch(() => {});
-}
-
-// Unlock on any interaction
-document.addEventListener("click", unlockAudio, { once: true });
-document.addEventListener("touchstart", unlockAudio, { once: true });
-
-// ================= LOGIN SYSTEM =================
+// ================= LOGIN & SETUP =================
 function unlockSystem() {
     const key = document.getElementById("godKey").value.trim();
-    const msg = document.getElementById("loginMsg");
-
     if (key === "OMEGA-777") {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("system-ui").style.display = "flex";
+        document.body.style.overflow = "hidden"; // Fix scroll
         
-        // 🔧 FIX 2: Body Overflow Lock (Ensures internal scrolling works)
-        document.body.style.overflow = "hidden";
-        
-        bootFace(); 
-        unlockAudio();
+        // Boot Text
+        const out = document.getElementById("missionOutput");
+        out.innerText = "AUTHORIZATION ACCEPTED.\nINITIALIZING AI CORE...\nCONNECTING TO SERVER...\nONLINE.";
     } else {
-        msg.innerText = "ACCESS DENIED: INVALID KEY";
-        document.getElementById("godKey").value = "";
+        document.getElementById("loginMsg").innerText = "ACCESS DENIED";
     }
 }
 
-// Visual Boot Effect
-function bootFace() {
-    const out = document.getElementById("missionOutput");
-    out.innerText = "AUTHORIZATION ACCEPTED.\nINITIALIZING AI CORE...\nCONNECTING TO SERVER...\nONLINE.";
-}
-
-// ================= SEND MISSION =================
+// ================= SEND MISSION (FINAL LOGIC) =================
 async function sendMission() {
     const input = document.getElementById("missionInput");
     const output = document.getElementById("missionOutput");
     const execBtn = document.getElementById("execBtn");
-
+    
     const text = input.value.trim();
     if (!text) return;
 
-    // UI Feedback
+    // UI Reset
     output.innerText += `\n\n> Sending: ${text}...`;
     input.value = "";
     execBtn.disabled = true;
     execBtn.innerText = "PROCESSING...";
-
+    playBtn.style.display = "none"; // Hide previous play button
+    
     // Auto Scroll
     const scrollBox = document.getElementById("scrollBox");
     scrollBox.scrollTop = scrollBox.scrollHeight;
 
     try {
+        // Correct API Path
         const res = await fetch(`${API}/api/execute`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                command: text,
-                persona: "JARVIS"
-            })
+            body: JSON.stringify({ command: text, persona: "JARVIS" })
         });
 
         if (!res.ok) throw new Error("Backend Error");
-
         const data = await res.json();
 
-        // Show Output
         output.innerText += `\n> RESPONSE:\n${JSON.stringify(data, null, 2)}`;
 
-        // Play Voice
+        // 🔊 AUDIO LOGIC (The "No-BS" Fix)
         if (data.audio) {
-            const audioUrl = data.audio.startsWith("http")
-                ? data.audio
-                : `${API}${data.audio}`;
-
-            console.log("Playing:", audioUrl);
-
-            voicePlayer.src = audioUrl;
+            lastAudioUrl = data.audio.startsWith("http") ? data.audio : `${API}${data.audio}`;
             
-            // 🔧 FIX 1: Essential for Mobile Stability
-            voicePlayer.load(); 
-            
-            voicePlayer.play().catch(err => {
-                output.innerText += "\n[WARN] Autoplay blocked. Tap screen.";
+            voicePlayer.src = lastAudioUrl;
+            voicePlayer.load(); // Important for mobile
+
+            // Try Autoplay
+            voicePlayer.play().then(() => {
+                // Success: Audio playing, keep button hidden
+                playBtn.style.display = "none";
+            }).catch(() => {
+                // Blocked: Show button for manual play
+                console.warn("Autoplay blocked. Showing button.");
+                playBtn.style.display = "block";
             });
         }
 
     } catch (err) {
-        output.innerText += "\n❌ ERROR: Backend Unreachable.";
+        output.innerText += "\n❌ ERROR: System Failure.";
     } finally {
         execBtn.disabled = false;
         execBtn.innerText = "EXECUTE";
@@ -273,30 +190,32 @@ async function sendMission() {
     }
 }
 
-// ================= MATRIX RAIN =================
+// ================= MANUAL PLAY HANDLER =================
+playBtn.onclick = () => {
+    if (lastAudioUrl) {
+        voicePlayer.play();
+        playBtn.style.display = "none"; // Hide after playing
+    }
+};
+
+// ================= MATRIX VISUALS =================
 const canvas = document.getElementById("matrix");
 const ctx = canvas.getContext("2d");
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-
 const letters = "01FTM2077Ω";
 const drops = Array(Math.floor(canvas.width / 20)).fill(1);
-
 function drawMatrix() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0f0";
-    ctx.font = "14px monospace";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0f0"; ctx.font = "14px monospace";
     drops.forEach((y, i) => {
         const text = letters[Math.floor(Math.random() * letters.length)];
         ctx.fillText(text, i * 20, y * 20);
-        if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
+        if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0; drops[i]++;
     });
 }
 setInterval(drawMatrix, 50);
-
 </script>
 </body>
 </html>
