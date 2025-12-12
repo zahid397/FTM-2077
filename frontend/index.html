@@ -1,168 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>FTM-2077 Voice Console</title>
-
-<style>
-body {
-    margin: 0;
-    background: black;
-    color: #0f0;
-    font-family: monospace;
-    overflow: hidden;
-}
-
-canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: -1;
-}
-
-.container {
-    position: absolute;
-    bottom: 30px;
-    left: 20px;
-    width: 90%;
-    max-width: 420px;
-}
-
-textarea {
-    width: 100%;
-    height: 90px;
-    background: black;
-    color: #0f0;
-    border: 2px solid #0f0;
-    padding: 10px;
-    box-sizing: border-box;
-}
-
-button {
-    margin-top: 10px;
-    background: black;
-    border: 2px solid #0f0;
-    color: #0f0;
-    padding: 10px;
-    cursor: pointer;
-    width: 100%;
-}
-
-.output {
-    position: absolute;
-    bottom: 30px;
-    right: 20px;
-    width: 90%;
-    max-width: 420px;
-    height: 260px;
-    border: 2px solid #0f0;
-    padding: 10px;
-    overflow-y: auto;
-}
-
-#playVoiceBtn {
-    display: none;
-    margin-top: 10px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTM-2077 Mission Control</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+        input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        #output { background: #333; padding: 15px; margin-top: 10px; white-space: pre-wrap; border-radius: 5px; }
+        audio { margin-top: 15px; width: 100%; display: none; }
+    </style>
 </head>
-
 <body>
 
-<canvas id="matrix"></canvas>
+    <h1>🚀 FTM-2077 Control</h1>
+    
+    <input type="text" id="cmd" placeholder="Type your command (e.g., Hello Jarvis)...">
+    <button onclick="sendMission()">Send Mission</button>
 
-<div class="container">
-    <h3>NEURAL TERMINAL</h3>
-    <textarea id="missionInput" placeholder="Enter mission directive..."></textarea>
-    <button onclick="sendMission()">EXECUTE</button>
-    <button id="playVoiceBtn">🔊 PLAY VOICE</button>
-</div>
+    <audio id="voicePlayer" controls></audio>
 
-<div class="output">
-    <h3>MISSION OUTPUT</h3>
-    <pre id="missionOutput">Awaiting command...</pre>
-</div>
+    <div id="output">Waiting for command...</div>
 
-<script>
-// ===============================
-// CONFIG
-// ===============================
-const API = "https://ftm-2077.onrender.com/api"; 
-// ⬆️ CHANGE ONLY IF BACKEND URL CHANGES
+    <script>
+        const BASE_URL = "https://ftm-2077.onrender.com"; 
+        const API_URL = `${BASE_URL}/api`;
 
-let lastAudioUrl = null;
-let audioPlayer = new Audio();
+        async function sendMission() {
+            const cmdInput = document.getElementById("cmd");
+            const output = document.getElementById("output");
+            const player = document.getElementById("voicePlayer");
+            const cmd = cmdInput.value.trim();
 
-// ===============================
-// MATRIX BACKGROUND
-// ===============================
-const canvas = document.getElementById("matrix");
-const ctx = canvas.getContext("2d");
+            if (!cmd) { alert("Please enter a command!"); return; }
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+            output.textContent = "Processing... ⏳";
+            
+            try {
+                const res = await fetch(`${API_URL}/execute`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ command: cmd, persona: "JARVIS" })
+                });
 
-const letters = "01FTM2077ΩΔ";
-const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+                if (!res.ok) throw new Error("Network response was not ok");
 
-function drawMatrix() {
-    ctx.fillStyle = "rgba(0,0,0,0.05)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0f0";
-    ctx.font = "16px monospace";
+                const data = await res.json();
+                output.textContent = JSON.stringify(data, null, 2);
 
-    drops.forEach((y, i) => {
-        const text = letters[Math.floor(Math.random() * letters.length)];
-        ctx.fillText(text, i * 20, y * 20);
-        drops[i] = y * 20 > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
-    });
-}
-setInterval(drawMatrix, 50);
+                if (data.audio) {
+                    // অডিও পাথ ঠিক করা
+                    const audioSrc = data.audio.startsWith("http") ? data.audio : `${BASE_URL}${data.audio}`;
+                    player.src = audioSrc;
+                    player.style.display = "block";
+                    player.play().catch(e => console.log("Click play to hear audio"));
+                }
 
-// ===============================
-// SEND COMMAND + RECEIVE VOICE
-// ===============================
-async function sendMission() {
-    const text = document.getElementById("missionInput").value.trim();
-    if (!text) return;
-
-    document.getElementById("missionOutput").innerText = "Processing...";
-    document.getElementById("playVoiceBtn").style.display = "none";
-
-    try {
-        const res = await fetch(`${API}/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                command: text,
-                persona: "JARVIS"
-            })
-        });
-
-        const data = await res.json();
-        document.getElementById("missionOutput").innerText =
-            JSON.stringify(data, null, 2);
-
-        if (data.audio) {
-            lastAudioUrl = API.replace("/api", "") + data.audio;
-            document.getElementById("playVoiceBtn").style.display = "block";
+            } catch (err) {
+                output.textContent = "Error: Backend unreachable ❌";
+                console.error(err);
+            }
         }
-
-    } catch (err) {
-        document.getElementById("missionOutput").innerText =
-            "❌ Backend unreachable";
-    }
-}
-
-// ===============================
-// PLAY VOICE (MOBILE SAFE)
-// ===============================
-document.getElementById("playVoiceBtn").onclick = () => {
-    if (!lastAudioUrl) return;
-    audioPlayer.src = lastAudioUrl;
-    audioPlayer.play();
-};
-</script>
-
+    </script>
 </body>
 </html>
