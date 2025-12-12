@@ -1,25 +1,26 @@
-# 1. Base Image (Lightweight Python)
-FROM python:3.9-slim
+# Use official Python image
+FROM python:3.11-slim
 
-# 2. Set Working Directory inside the container
+# Set working directory
 WORKDIR /app
 
-# 3. Copy Requirements & Install Dependencies
-# (Age requirements copy korchi jate Docker cache use korte pare)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies (optional but safe)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 4. Copy Entire Project
-# (Host machine theke container er vitore sob copy hobe)
+# Copy requirements first (better caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy entire project
 COPY . .
 
-# 5. Run Setup Script
-# (Jodi kono folder missing thake, eta create kore dibe)
-RUN python setup_final.py
+# Expose Render default port
+EXPOSE 10000
 
-# 6. Expose API Port
-EXPOSE 8000
-
-# 7. Start Command (Production Mode)
-# (Correct syntax for Uvicorn)
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start FastAPI app
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "10000"]
