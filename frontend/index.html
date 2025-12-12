@@ -1,54 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>FTM-2077 // OMEGA</title>
+<meta charset="UTF-8">
+<title>FTM-2077 Voice Console</title>
 
-    <link rel="stylesheet" href="css/cyberpunk.css">
-    <link rel="stylesheet" href="css/security.css">
-    <link rel="stylesheet" href="css/face_fx.css">
+<style>
+body {
+    margin: 0;
+    background: black;
+    color: #0f0;
+    font-family: monospace;
+    overflow: hidden;
+}
+
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.container {
+    position: absolute;
+    bottom: 30px;
+    left: 20px;
+    width: 90%;
+    max-width: 420px;
+}
+
+textarea {
+    width: 100%;
+    height: 90px;
+    background: black;
+    color: #0f0;
+    border: 2px solid #0f0;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+button {
+    margin-top: 10px;
+    background: black;
+    border: 2px solid #0f0;
+    color: #0f0;
+    padding: 10px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.output {
+    position: absolute;
+    bottom: 30px;
+    right: 20px;
+    width: 90%;
+    max-width: 420px;
+    height: 260px;
+    border: 2px solid #0f0;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+#playVoiceBtn {
+    display: none;
+    margin-top: 10px;
+}
+</style>
 </head>
 
 <body>
 
-<!-- ================= LOGIN SCREEN ================= -->
-<div id="login-screen">
-    <h1>FTM-2077 Access Portal</h1>
-    <input type="password" id="godKey" placeholder="Enter Access Key...">
-    <button onclick="unlockSystem()">Unlock</button>
+<canvas id="matrix"></canvas>
+
+<div class="container">
+    <h3>NEURAL TERMINAL</h3>
+    <textarea id="missionInput" placeholder="Enter mission directive..."></textarea>
+    <button onclick="sendMission()">EXECUTE</button>
+    <button id="playVoiceBtn">🔊 PLAY VOICE</button>
 </div>
 
-<!-- ================= MAIN SYSTEM UI ================= -->
-<div id="system-ui" style="display:none;">
-    <canvas id="matrix"></canvas>
-
-    <div id="ai-face"></div>
-
-    <div class="terminal">
-        <h2>NEURAL TERMINAL</h2>
-
-        <textarea
-            id="missionInput"
-            placeholder="Enter mission directive..."
-        ></textarea>
-
-        <!-- 🔥 FIX: ID added -->
-        <button id="executeBtn" onclick="sendMission()">
-            EXECUTE
-        </button>
-    </div>
-
-    <div class="output-box">
-        <h3>MISSION OUTPUT</h3>
-        <pre id="missionOutput">Awaiting command...</pre>
-    </div>
+<div class="output">
+    <h3>MISSION OUTPUT</h3>
+    <pre id="missionOutput">Awaiting command...</pre>
 </div>
 
-<!-- ================= SCRIPTS ================= -->
-<script src="js/matrix.js"></script>
-<script src="js/face_core.js"></script>
-<script src="js/core.js"></script>
-<script src="js/security.js"></script>
+<script>
+// ===============================
+// CONFIG
+// ===============================
+const API = "https://ftm-2077.onrender.com/api"; 
+// ⬆️ CHANGE ONLY IF BACKEND URL CHANGES
+
+let lastAudioUrl = null;
+let audioPlayer = new Audio();
+
+// ===============================
+// MATRIX BACKGROUND
+// ===============================
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const letters = "01FTM2077ΩΔ";
+const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+
+function drawMatrix() {
+    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = "16px monospace";
+
+    drops.forEach((y, i) => {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * 20, y * 20);
+        drops[i] = y * 20 > canvas.height && Math.random() > 0.975 ? 0 : y + 1;
+    });
+}
+setInterval(drawMatrix, 50);
+
+// ===============================
+// SEND COMMAND + RECEIVE VOICE
+// ===============================
+async function sendMission() {
+    const text = document.getElementById("missionInput").value.trim();
+    if (!text) return;
+
+    document.getElementById("missionOutput").innerText = "Processing...";
+    document.getElementById("playVoiceBtn").style.display = "none";
+
+    try {
+        const res = await fetch(`${API}/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                command: text,
+                persona: "JARVIS"
+            })
+        });
+
+        const data = await res.json();
+        document.getElementById("missionOutput").innerText =
+            JSON.stringify(data, null, 2);
+
+        if (data.audio) {
+            lastAudioUrl = API.replace("/api", "") + data.audio;
+            document.getElementById("playVoiceBtn").style.display = "block";
+        }
+
+    } catch (err) {
+        document.getElementById("missionOutput").innerText =
+            "❌ Backend unreachable";
+    }
+}
+
+// ===============================
+// PLAY VOICE (MOBILE SAFE)
+// ===============================
+document.getElementById("playVoiceBtn").onclick = () => {
+    if (!lastAudioUrl) return;
+    audioPlayer.src = lastAudioUrl;
+    audioPlayer.play();
+};
+</script>
 
 </body>
 </html>
