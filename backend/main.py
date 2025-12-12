@@ -2,28 +2,36 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import sys
 import os
 
-sys.path.append(os.getcwd())
-
+# -----------------------
 # CONFIG + INTERNAL MODULES
-from backend.config import settings
-from backend.models.mission_model import MissionRequest
-from backend.utils.logger import sys_log
-from backend.utils.log_stream import streamer
-from backend.core.fusion_engine import fusion
-from backend.services.security_engine import security
+# -----------------------
+from config import settings
+from models.mission_model import MissionRequest
+from utils.logger import sys_log
+from utils.log_stream import streamer
+from core.fusion_engine import fusion
+from services.security_engine import security
 
-# Optional modules
-try: from backend.services.audio_engine import audio_engine
-except: audio_engine = None
+# -----------------------
+# OPTIONAL MODULES (SAFE)
+# -----------------------
+try:
+    from services.audio_engine import audio_engine
+except Exception:
+    audio_engine = None
 
-try: from backend.services.vultr_storage import vultr
-except: vultr = None
+try:
+    from services.vultr_storage import vultr
+except Exception:
+    vultr = None
 
-try: from backend.services.report_engine import report_engine
-except: report_engine = None
+try:
+    from services.report_engine import report_engine
+except Exception:
+    report_engine = None
+
 
 # -----------------------
 # APP INITIALIZE
@@ -44,9 +52,10 @@ app.add_middleware(
 )
 
 # -----------------------
-# STATIC (AUDIO FILES)
+# STATIC FILES (AUDIO)
 # -----------------------
-app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
+if os.path.exists(settings.AUDIO_DIR):
+    app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
 
 
 # -----------------------
@@ -104,14 +113,17 @@ async def execute(req: MissionRequest):
     # 1. Fusion Engine
     result = fusion.process(req.command, req.persona)
 
-    # 2. Audio
+    # 2. Audio (Optional)
     if audio_engine:
-        result["audio"] = audio_engine.generate_voice(
-            result["analysis"],
-            req.persona
-        )
+        try:
+            result["audio"] = audio_engine.generate_voice(
+                result["analysis"],
+                req.persona
+            )
+        except Exception as e:
+            sys_log.log("ERROR", f"Audio Failed: {e}")
 
-    # 3. Report + Cloud Upload
+    # 3. Report + Cloud Upload (Optional)
     if report_engine:
         try:
             rep = report_engine.create_mission_report(result)
@@ -129,7 +141,7 @@ async def execute(req: MissionRequest):
             sys_log.log("ERROR", f"Report Failed: {e}")
 
     await streamer.broadcast(
-        f"Done. Probability: {result['probability']}%",
+        f"Done. Probability: {result.get('probability', 0)}%",
         "AI"
     )
 
@@ -150,9 +162,13 @@ async def toggle_god(key: str):
 
 
 # -----------------------
-# LOCAL RUN SUPPORT
+# LOCAL DEV SUPPORT
 # -----------------------
 if __name__ == "__main__":
     import uvicorn
     print(f"🚀 Running on http://{settings.HOST}:{settings.PORT}")
-    uvicorn.run("backend.main:app", host=settings.HOST, port=settings.PORT, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=settings.HOST,
+        port=settings.PORT
+    )
