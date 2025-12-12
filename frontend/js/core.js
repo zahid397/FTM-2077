@@ -1,51 +1,60 @@
-// ================================
-// FTM-2077 OMEGA :: CORE ENGINE
-// ================================
+// =======================================
+// FTM-2077 :: CORE FRONTEND ENGINE (FINAL)
+// =======================================
 
 // 🔗 BACKEND BASE URL (Render)
-const API_BASE = "https://ftm-2077.onrender.com";
+const API = "https://ftm-2077.onrender.com";
 
-// ================================
+// -------------------------------
 // DOM ELEMENTS
-// ================================
+// -------------------------------
 const inputEl = document.getElementById("missionInput");
 const outputEl = document.getElementById("missionOutput");
 const executeBtn = document.getElementById("executeBtn");
 
-// ================================
-// MAIN EXECUTION FUNCTION
-// ================================
+// -------------------------------
+// MAIN FUNCTION
+// -------------------------------
 async function sendMission() {
-    const command = inputEl.value.trim();
+    if (!inputEl || !outputEl) return;
 
-    if (!command) {
+    const text = inputEl.value.trim();
+    if (!text) {
         outputEl.innerText = "⚠️ No command entered.";
         return;
     }
 
-    // UI feedback
     outputEl.innerText = "⏳ Processing mission...\n";
 
     try {
-        const res = await fetch(`${API_BASE}/api/execute`, {
+        const res = await fetch(`${API}/api/execute`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                command: command   // 🔥 backend expects THIS
+                command: text,          // ✅ REQUIRED BY BACKEND
+                persona: "JARVIS"       // ✅ DEFAULT PERSONA
             })
         });
 
         if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(errText || "Request failed");
+            const err = await res.text();
+            throw new Error(err || "Request failed");
         }
 
         const data = await res.json();
 
-        // Pretty print output
+        // Pretty output
         outputEl.innerText = formatOutput(data);
+
+        // 🔊 AUTO PLAY AUDIO (if available)
+        if (data.audio) {
+            const audio = new Audio(`${API}${data.audio}`);
+            audio.play().catch(() => {
+                console.warn("Audio autoplay blocked by browser");
+            });
+        }
 
     } catch (err) {
         outputEl.innerText =
@@ -54,24 +63,41 @@ async function sendMission() {
     }
 }
 
-// ================================
+// -------------------------------
 // OUTPUT FORMATTER
-// ================================
+// -------------------------------
 function formatOutput(data) {
-    if (typeof data === "string") {
-        return data;
+    if (!data || typeof data !== "object") {
+        return String(data);
     }
 
     if (data.detail) {
         return "⚠️ " + JSON.stringify(data.detail, null, 2);
     }
 
-    return JSON.stringify(data, null, 2);
+    let result = "";
+
+    if (data.status) result += `STATUS: ${data.status}\n`;
+    if (data.persona) result += `PERSONA: ${data.persona}\n`;
+    if (data.command) result += `COMMAND: ${data.command}\n`;
+    if (data.probability !== undefined)
+        result += `PROBABILITY: ${data.probability}%\n\n`;
+
+    if (data.analysis) {
+        result += "ANALYSIS:\n";
+        result += data.analysis + "\n\n";
+    }
+
+    if (data.audio) {
+        result += "🔊 Voice response generated.\n";
+    }
+
+    return result || JSON.stringify(data, null, 2);
 }
 
-// ================================
+// -------------------------------
 // EVENT BINDINGS
-// ================================
+// -------------------------------
 if (executeBtn) {
     executeBtn.addEventListener("click", sendMission);
 }
@@ -79,13 +105,14 @@ if (executeBtn) {
 // Enter key support
 if (inputEl) {
     inputEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
             sendMission();
         }
     });
 }
 
-// ================================
-// SYSTEM BOOT MESSAGE
-// ================================
-console.log("🟢 FTM-2077 CORE ONLINE");
+// -------------------------------
+// SYSTEM BOOT LOG
+// -------------------------------
+console.log("🟢 FTM-2077 FRONTEND CORE ONLINE");
