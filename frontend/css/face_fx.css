@@ -1,151 +1,98 @@
-/* ============================= */
-/* 🔥 GLOBAL */
-/* ============================= */
-body {
+/* ===== RESET ===== */
+* {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+/* ===== BODY ===== */
+body {
     background: black;
-    color: #0f0;
+    color: #00ff00;
     font-family: monospace;
     overflow: hidden;
 }
 
-/* ============================= */
-/* 🎥 MATRIX BACKGROUND */
-/* ============================= */
+/* ===== MATRIX CANVAS ===== */
 #matrix {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 0;
+    z-index: -1;
 }
 
-/* ============================= */
-/* 🧠 AI FACE */
-/* ============================= */
-#ai-face {
-    position: absolute;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 3;
+/* ===== TERMINAL LAYOUT ===== */
+#system-ui {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 15px;
 }
 
-/* ============================= */
-/* 🖥 TERMINAL */
-/* ============================= */
-.terminal {
-    position: absolute;
-    left: 40px;
-    bottom: 40px;
-    width: 380px;
-    z-index: 5;
+/* ===== OUTPUT BOX ===== */
+.output-box {
+    flex: 1;
+    border: 2px solid #00ff00;
+    padding: 12px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.85);
+    box-shadow: 0 0 10px #00ff00;
+    font-size: 14px;
 }
 
-.terminal h2 {
-    margin-bottom: 8px;
+.output-box h3 {
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #00ff00;
+}
+
+/* ===== INPUT AREA ===== */
+.input-container {
+    margin-top: 10px;
+    border: 2px solid #00ff00;
+    padding: 10px;
+    background: black;
+    box-shadow: 0 0 10px #00ff00;
 }
 
 textarea {
     width: 100%;
-    height: 120px;
-    background: #000;
-    color: #0f0;
-    border: 2px solid #0f0;
+    height: 60px;
+    background: black;
+    color: #00ff00;
+    border: 1px solid #00ff00;
     padding: 8px;
+    font-family: monospace;
+    font-size: 14px;
     resize: none;
+    outline: none;
 }
 
+/* ===== BUTTON ===== */
 button {
-    margin-top: 10px;
+    margin-top: 8px;
+    width: 100%;
     background: black;
-    border: 2px solid #0f0;
-    color: #0f0;
-    padding: 8px 20px;
+    color: #00ff00;
+    border: 2px solid #00ff00;
+    padding: 10px;
+    font-weight: bold;
     cursor: pointer;
 }
 
 button:hover {
-    background: #0f0;
-    color: #000;
+    background: #00ff00;
+    color: black;
 }
 
-/* ============================= */
-/* 📤 OUTPUT */
-/* ============================= */
-.output-box {
-    position: absolute;
-    right: 40px;
-    bottom: 40px;
-    width: 380px;
-    height: 260px;
-    border: 2px solid #0f0;
-    padding: 10px;
-    overflow-y: auto;
-    z-index: 5;
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+    width: 6px;
 }
 
-/* ============================= */
-/* 🔐 LOGIN SCREEN */
-/* ============================= */
-#login-screen {
-    position: fixed;
-    inset: 0;
+::-webkit-scrollbar-track {
     background: black;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
 }
 
-#login-screen h1 {
-    margin-bottom: 15px;
-}
-
-#login-screen input {
-    padding: 10px;
-    width: 220px;
-    background: #000;
-    border: 2px solid #0f0;
-    color: #0f0;
-    margin-bottom: 10px;
-}
-
-/* ============================= */
-/* 📱 MOBILE RESPONSIVE */
-/* ============================= */
-@media (max-width: 768px) {
-
-    body {
-        overflow-y: auto;
-    }
-
-    #ai-face {
-        position: relative;
-        top: auto;
-        left: auto;
-        transform: none;
-        margin: 20px auto;
-    }
-
-    .terminal,
-    .output-box {
-        position: relative;
-        width: 90%;
-        margin: 15px auto;
-        left: auto;
-        right: auto;
-        bottom: auto;
-    }
-
-    textarea {
-        height: 90px;
-        font-size: 14px;
-    }
-
-    .output-box {
-        height: auto;
-        max-height: 200px;
-    }
+::-webkit-scrollbar-thumb {
+    background: #00ff00;
 }
