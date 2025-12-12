@@ -11,12 +11,14 @@
 
 <body>
 
+<!-- ================= LOGIN SCREEN ================= -->
 <div id="login-screen">
     <h1>FTM-2077 Access Portal</h1>
     <input type="password" id="godKey" placeholder="Enter Access Key...">
     <button onclick="unlockSystem()">Unlock</button>
 </div>
 
+<!-- ================= MAIN SYSTEM UI ================= -->
 <div id="system-ui" style="display:none;">
     <canvas id="matrix"></canvas>
 
@@ -24,8 +26,16 @@
 
     <div class="terminal">
         <h2>NEURAL TERMINAL</h2>
-        <textarea id="missionInput" placeholder="Enter mission directive..."></textarea>
-        <button onclick="sendMission()">EXECUTE</button>
+
+        <textarea
+            id="missionInput"
+            placeholder="Enter mission directive..."
+        ></textarea>
+
+        <!-- 🔥 FIX: ID added -->
+        <button id="executeBtn" onclick="sendMission()">
+            EXECUTE
+        </button>
     </div>
 
     <div class="output-box">
@@ -34,9 +44,11 @@
     </div>
 </div>
 
+<!-- ================= SCRIPTS ================= -->
 <script src="js/matrix.js"></script>
 <script src="js/face_core.js"></script>
 <script src="js/core.js"></script>
 <script src="js/security.js"></script>
+
 </body>
 </html>
