@@ -1,5 +1,5 @@
-// 🔗 BACKEND ROUTE (Raindrop Production URL)
-const API = "https://YOUR_RAINDROP_URL/api";
+// 🔗 BACKEND ROUTE (Render Production URL)
+const API = "https://ftm-2077.onrender.com/api";
 
 async function sendMission() {
     let text = document.getElementById("missionInput").value;
