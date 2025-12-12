@@ -1,71 +1,88 @@
-// ১. URL গুলো ভেরিয়েবল এ রাখা ভালো
-const BASE_URL = "https://ftm-2077.onrender.com"; 
-const API_URL = `${BASE_URL}/api`;
+// ================================
+// CONFIG
+// ================================
+const API = "https://ftm-2077.onrender.com"; 
+// ⚠️ যদি backend URL আলাদা হয়, এখানে শুধু এটা বদলাবি
 
-async function sendMission() {
-  const cmdInput = document.getElementById("cmd");
-  const output = document.getElementById("output");
-  const player = document.getElementById("voicePlayer");
+// ================================
+// UNLOCK SYSTEM
+// ================================
+function unlockSystem() {
+    const key = document.getElementById("godKey").value.trim();
 
-  const cmd = cmdInput.value.trim();
-
-  // ২. যদি ইনপুট খালি থাকে
-  if (!cmd) {
-    alert("Please enter a command!");
-    return;
-  }
-
-  output.textContent = "Processing... ⏳";
-  output.style.color = "blue";
-  
-  // আগের অডিও থাকলে বন্ধ করা
-  player.pause();
-  player.currentTime = 0;
-  player.style.display = "none";
-
-  try {
-    // ৩. রিকোয়েস্ট পাঠানো
-    const res = await fetch(`${API_URL}/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        command: cmd,
-        persona: "JARVIS" // অথবা অন্য কোনো নাম
-      })
-    });
-
-    if (!res.ok) throw new Error(`Server Error: ${res.status}`);
-
-    const data = await res.json();
-    
-    // ৪. আউটপুট দেখানো
-    output.textContent = JSON.stringify(data, null, 2);
-    output.style.color = "green";
-
-    // 🔊 ৫. অডিও প্লে করা (Audio Logic Fix)
-    if (data.audio) {
-      // যদি অডিও পাথ (Path) হিসেবে আসে, তাহলে বেস URL যোগ করতে হবে
-      // আর যদি ফুল URL (http...) আসে, তাহলে সরাসরি বসবে।
-      const audioSrc = data.audio.startsWith("http") 
-        ? data.audio 
-        : `${BASE_URL}${data.audio}`;
-
-      player.src = audioSrc;
-      player.style.display = "block";
-
-      // ব্রাউজার পলিসি হ্যান্ডেল করার জন্য try-catch
-      try {
-        await player.play();
-      } catch (playError) {
-        console.warn("Autoplay blocked. User interaction needed.");
-      }
-    } else {
-        console.log("No audio received from backend.");
+    if (!key) {
+        alert("Enter access key");
+        return;
     }
 
-  } catch (err) {
-    console.error(err);
-    output.textContent = "Backend unreachable or Error ❌";
-    output.style.color = "red";
-  }
+    // শুধু frontend unlock animation
+    if (key === "OMEGA-777") {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("system-ui").style.display = "block";
+        bootFace();
+        return;
+    }
+
+    alert("Invalid Key");
+}
+
+// ================================
+// SEND MISSION
+// ================================
+async function sendMission() {
+    const input = document.getElementById("missionInput");
+    const output = document.getElementById("missionOutput");
+    const voicePlayer = document.getElementById("voicePlayer");
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    output.textContent = "Processing command...";
+    input.value = "";
+
+    try {
+        const res = await fetch(`${API}/api/execute`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                command: text,
+                persona: "JARVIS"
+            })
+        });
+
+        if (!res.ok) {
+            throw new Error("Backend error");
+        }
+
+        const data = await res.json();
+
+        // ================================
+        // SHOW OUTPUT
+        // ================================
+        output.textContent = JSON.stringify(data, null, 2);
+
+        // ================================
+        // PLAY VOICE (IMPORTANT PART)
+        // ================================
+        if (data.audio) {
+            const audioUrl = API + data.audio;
+            console.log("Playing audio:", audioUrl);
+
+            voicePlayer.pause();
+            voicePlayer.src = audioUrl;
+            voicePlayer.load();
+
+            // Mobile fix (user interaction already happened)
+            voicePlayer.play().catch(err => {
+                console.warn("Audio autoplay blocked:", err);
+            });
+        }
+
+    } catch (err) {
+        console.error(err);
+        output.textContent = "ERROR: Backend unreachable";
+        alert("Backend unreachable");
+    }
 }
