@@ -1,14 +1,13 @@
-// 🔗 BACKEND ROUTE (Render Production URL)
-const API = "https://ftm-2077.onrender.com/api";
+const API = "https://ftm-2077.onrender.com";
 
 async function sendMission() {
-    let text = document.getElementById("missionInput").value;
+    const text = document.getElementById("missionInput").value;
     if (!text.trim()) return;
 
     document.getElementById("missionOutput").innerText = "Processing...";
 
     try {
-        const res = await fetch(`${API}/process_mission`, {
+        const res = await fetch(`${API}/api/execute`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title: text })
