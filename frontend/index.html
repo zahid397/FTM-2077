@@ -1,67 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>FTM-2077 // OMEGA CORE</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FTM-2077 Voice Console</title>
 
-    <!-- META -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+body {
+    margin: 0;
+    background: black;
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden; /* স্ক্রলবার লুকানোর জন্য */
+}
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css" />
-    <link rel="stylesheet" href="css/cyberpunk.css" />
-    <link rel="stylesheet" href="css/security.css" />
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+/* ফ্লেক্সবক্স দিয়ে লেআউট মোবাইল রেসপন্সিভ করা হলো */
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* সব নিচে থাকবে */
+    height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container, .output {
+    background: rgba(0, 0, 0, 0.8); /* লেখার নিচে হালকা কালো ব্যাকগ্রাউন্ড */
+    border: 1px solid #0f0;
+    padding: 15px;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+}
+
+.output {
+    height: 200px; /* আউটপুট বক্সের হাইট */
+    overflow-y: auto;
+    font-size: 14px;
+    margin-bottom: auto; /* আউটপুট উপরে ঠেলে দেবে */
+}
+
+textarea {
+    width: 100%;
+    height: 60px;
+    background: black;
+    color: #0f0;
+    border: 1px solid #005500;
+    padding: 10px;
+    box-sizing: border-box;
+    font-family: inherit;
+    resize: none;
+}
+textarea:focus { outline: none; border-color: #0f0; }
+
+button {
+    margin-top: 10px;
+    background: #002200;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 12px;
+    cursor: pointer;
+    width: 100%;
+    font-weight: bold;
+    font-family: inherit;
+    transition: 0.2s;
+}
+button:hover { background: #0f0; color: black; }
+button:disabled { border-color: gray; color: gray; cursor: not-allowed; }
+
+#playVoiceBtn {
+    display: none; /* ডিফল্টভাবে লুকানো থাকবে */
+    background: #004400;
+    border-color: #00ff00;
+    box-shadow: 0 0 10px #00ff00;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 5px #00ff00; }
+    50% { box-shadow: 0 0 20px #00ff00; }
+    100% { box-shadow: 0 0 5px #00ff00; }
+}
+</style>
 </head>
 
 <body>
 
-<!-- ================= LOGIN SCREEN ================= -->
-<div id="login-screen">
-    <h1>FTM-2077 Access Portal</h1>
-    <input
-        type="password"
-        id="godKey"
-        placeholder="Enter Access Key..."
-        autocomplete="off"
-    />
-    <button onclick="unlockSystem()">Unlock</button>
-</div>
+<canvas id="matrix"></canvas>
 
-<!-- ================= SYSTEM UI ================= -->
-<div id="system-ui" style="display:none;">
-
-    <!-- MATRIX BACKGROUND -->
-    <canvas id="matrix"></canvas>
-
-    <!-- AI FACE -->
-    <div id="ai-face"></div>
-
-    <!-- TERMINAL -->
-    <div class="terminal">
-        <h2>NEURAL TERMINAL</h2>
-        <textarea
-            id="missionInput"
-            placeholder="Enter mission directive..."
-        ></textarea>
-        <button onclick="sendMission()">EXECUTE</button>
+<div class="wrapper">
+    <div class="output">
+        <h3 style="margin-top:0; border-bottom: 1px dashed #0f0;">MISSION LOG</h3>
+        <pre id="missionOutput" style="white-space: pre-wrap;">System Online. Awaiting directive...</pre>
     </div>
 
-    <!-- OUTPUT -->
-    <div class="output-box">
-        <h3>MISSION OUTPUT</h3>
-        <pre id="missionOutput">Awaiting command...</pre>
+    <div class="container">
+        <textarea id="missionInput" placeholder="Enter command protocol..."></textarea>
+        
+        <button id="execBtn" onclick="sendMission()">EXECUTE PROTOCOL</button>
+        <button id="playVoiceBtn">🔊 AUDIO RECEIVED - TAP TO PLAY</button>
     </div>
-
 </div>
 
-<!-- ================= AUDIO PLAYER (HIDDEN) ================= -->
-<audio id="voicePlayer" autoplay></audio>
+<script>
+// ===============================
+// CONFIG
+// ===============================
+const BASE_URL = "https://ftm-2077.onrender.com";
+const API_URL = `${BASE_URL}/api`;
 
-<!-- ================= JS ================= -->
-<script src="js/matrix.js"></script>
-<script src="js/face_core.js"></script>
-<script src="js/core.js"></script>
-<script src="js/security.js"></script>
+let lastAudioUrl = null;
+const audioPlayer = new Audio();
+
+// ===============================
+// MATRIX BACKGROUND (RESIZABLE)
+// ===============================
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+let drops = [];
+const letters = "01FTM2077ΩΔπ";
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // রিসাইজ হলে কলাম সংখ্যা পুনরায় গণনা
+    const columns = Math.floor(canvas.width / 20);
+    drops = Array(columns).fill(1);
+}
+
+// উইন্ডো লোড এবং রিসাইজ হলে ক্যানভাস আপডেট হবে
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); 
+
+function drawMatrix() {
+    ctx.fillStyle = "rgba(0,0,0,0.05)"; // ট্রেইল ইফেক্ট
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0f0"; // টেক্সট কালার
+    ctx.font = "16px monospace";
+
+    drops.forEach((y, i) => {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * 20, y * 20);
+        
+        // র্যান্ডম রিসেট
+        if (y * 20 > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+        }
+        drops[i]++;
+    });
+}
+setInterval(drawMatrix, 50);
+
+// ===============================
+// CORE LOGIC
+// ===============================
+async function sendMission() {
+    const inputField = document.getElementById("missionInput");
+    const outputField = document.getElementById("missionOutput");
+    const execBtn = document.getElementById("execBtn");
+    const playBtn = document.getElementById("playVoiceBtn");
+    
+    const text = inputField.value.trim();
+    if (!text) return;
+
+    // UI Reset
+    outputField.innerText = "Encrypting transmission... Processing...";
+    execBtn.disabled = true;
+    execBtn.innerText = "UPLOADING...";
+    playBtn.style.display = "none";
+    audioPlayer.pause();
+
+    try {
+        const res = await fetch(`${API_URL}/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                command: text,
+                persona: "JARVIS"
+            })
+        });
+
+        const data = await res.json();
+        
+        // রেজাল্ট দেখানো
+        outputField.innerText = `> RESPONSE RECEIVED:\n\n${JSON.stringify(data, null, 2)}`;
+
+        // অডিও লজিক
+        if (data.audio) {
+            // URL ফিক্সার: যদি http থাকে ভালো, না থাকলে বেস URL যোগ হবে
+            lastAudioUrl = data.audio.startsWith("http") 
+                ? data.audio 
+                : `${BASE_URL}${data.audio}`;
+            
+            audioPlayer.src = lastAudioUrl;
+
+            // অটো প্লে করার চেষ্টা (Try Auto-Play)
+            audioPlayer.play().catch(error => {
+                console.log("Auto-play blocked by browser, showing button.");
+                playBtn.style.display = "block"; // ব্যর্থ হলে বাটন দেখাবে
+            });
+        }
+
+    } catch (err) {
+        outputField.innerText = "❌ ERROR: Uplink Failed. Backend unreachable.";
+        console.error(err);
+    } finally {
+        execBtn.disabled = false;
+        execBtn.innerText = "EXECUTE PROTOCOL";
+    }
+}
+
+// বাটন ক্লিক হ্যান্ডলার (মোবাইলের জন্য ব্যাকআপ)
+document.getElementById("playVoiceBtn").onclick = () => {
+    if (lastAudioUrl) {
+        audioPlayer.play();
+        document.getElementById("playVoiceBtn").style.display = "none"; // প্লে হলে বাটন হাইড
+    }
+};
+</script>
 
 </body>
 </html>
