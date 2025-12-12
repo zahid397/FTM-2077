@@ -1,269 +1,302 @@
-<!DOCTYPE html>  <html lang="en">  
-<head>  
-<meta charset="UTF-8">  
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">  
-<title>FTM-2077 Neural Link</title>  <style>  
-/* ================= GLOBAL STYLES ================= */  
-* { box-sizing: border-box; }  
-  
-body {  
-    margin: 0;  
-    padding: 0;  
-    background: black;  
-    color: #0f0;  
-    font-family: 'Courier New', Courier, monospace;  
-    overflow: hidden;  
-    height: 100dvh; /* Mobile viewport fix */  
-    display: flex;  
-    flex-direction: column;  
-}  
-  
-/* ================= MATRIX BACKGROUND ================= */  
-canvas {  
-    position: fixed;  
-    top: 0;  
-    left: 0;  
-    z-index: -1;  
-    opacity: 0.8;  
-}  
-  
-/* ================= MAIN LAYOUT ================= */  
-.screen-container {  
-    display: flex;  
-    flex-direction: column;  
-    height: 100%;  
-    padding: 15px;  
-    z-index: 10;  
-}  
-  
-/* ================= OUTPUT LOG ================= */  
-.output-box {  
-    flex-grow: 1;  
-    border: 2px solid #0f0;  
-    background: rgba(0, 20, 0, 0.75);  
-    padding: 15px;  
-    margin-bottom: 15px;  
-    overflow-y: auto;  
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);  
-    border-radius: 5px;  
-    font-size: 14px;  
-    line-height: 1.5;  
-}  
-  
-.output-box h3 {  
-    margin-top: 0;  
-    border-bottom: 1px dashed #0f0;  
-    padding-bottom: 5px;  
-    text-shadow: 0 0 5px #0f0;  
-}  
-  
-/* ================= INPUT AREA ================= */  
-.input-container {  
-    border: 2px solid #0f0;  
-    background: black;  
-    padding: 10px;  
-    display: flex;  
-    flex-direction: column;  
-    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);  
-    border-radius: 5px;  
-}  
-  
-.terminal-header {  
-    font-size: 12px;  
-    margin-bottom: 5px;  
-    opacity: 0.8;  
-    background: #002200;  
-    padding: 2px 5px;  
-    display: inline-block;  
-    width: fit-content;  
-}  
-  
-textarea {  
-    width: 100%;  
-    height: 50px;  
-    background: transparent;  
-    border: none;  
-    color: #0f0;  
-    font-family: inherit;  
-    font-size: 16px;  
-    resize: none;  
-    outline: none;  
-}  
-  
-/* Controls */  
-.controls {  
-    display: flex;  
-    gap: 10px;  
-    margin-top: 5px;  
-}  
-  
-button {  
-    flex: 1;  
-    background: #003300;  
-    border: 1px solid #0f0;  
-    color: #0f0;  
-    padding: 12px;  
-    font-weight: bold;  
-    cursor: pointer;  
-    text-transform: uppercase;  
-    transition: 0.2s;  
-}  
-  
-button:active { background: #0f0; color: black; }  
-button:disabled { opacity: 0.5; cursor: not-allowed; }  
-  
-#playVoiceBtn {  
-    display: none;  
-    border-color: #ffff00;  
-    color: #ffff00;  
-    animation: flash 1s infinite;  
-}  
-  
-@keyframes flash {  
-    0% { opacity: 1; }  
-    50% { opacity: 0.5; }  
-    100% { opacity: 1; }  
-}  
-  
-::-webkit-scrollbar { width: 5px; }  
-::-webkit-scrollbar-track { background: #001100; }  
-::-webkit-scrollbar-thumb { background: #0f0; }  
-</style>  </head>  <body>  <canvas id="matrix"></canvas>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FTM-2077 SECURE TERMINAL</title>
 
-<div class="screen-container">  
-    <div class="output-box" id="scrollBox">  
-        <h3>NEURAL LINK [ONLINE]</h3>  
-        <pre id="missionOutput" style="white-space: pre-wrap;">System initialized...  
-Tap anywhere to sync audio uplink...  
-_</pre>  
-    </div>  <div class="input-container">  
-    <div class="terminal-header">USER@FTM-2077:~$ DIRECTIVE</div>  
-    <textarea id="missionInput" placeholder="Type command here..."></textarea>  
-      
-    <div class="controls">  
-        <button onclick="sendMission()" id="execBtn">EXECUTE</button>  
-        <button id="playVoiceBtn">🔊 TAP TO HEAR</button>  
-    </div>  
+<style>
+/* ================= GLOBAL STYLES ================= */
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 0;
+    background: black;
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden; /* App-like feel */
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ================= MATRIX BACKGROUND ================= */
+canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    opacity: 0.8;
+}
+
+/* ================= LOGIN SCREEN ================= */
+#login-screen {
+    z-index: 100;
+    text-align: center;
+    background: rgba(0, 10, 0, 0.9);
+    padding: 40px;
+    border: 2px solid #0f0;
+    box-shadow: 0 0 20px #0f0;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
+}
+
+#login-screen h2 {
+    margin: 0 0 20px 0;
+    text-shadow: 0 0 10px #0f0;
+    letter-spacing: 2px;
+}
+
+#godKey {
+    background: black;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 10px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 20px;
+    outline: none;
+}
+
+/* ================= MAIN SYSTEM UI ================= */
+#system-ui {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    padding: 15px;
+    z-index: 10;
+}
+
+.output-box {
+    flex-grow: 1;
+    border: 2px solid #0f0;
+    background: rgba(0, 20, 0, 0.75);
+    padding: 15px;
+    margin-bottom: 15px;
+    overflow-y: auto; /* Internal scrolling */
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+    border-radius: 5px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.input-container {
+    border: 2px solid #0f0;
+    background: black;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+    border-radius: 5px;
+}
+
+textarea {
+    width: 100%;
+    height: 50px;
+    background: transparent;
+    border: none;
+    color: #0f0;
+    font-family: inherit;
+    font-size: 16px;
+    resize: none;
+    outline: none;
+}
+
+button {
+    background: #003300;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: 0.2s;
+    width: 100%;
+    margin-top: 10px;
+}
+
+button:active { background: #0f0; color: black; }
+button:disabled { opacity: 0.6; cursor: wait; }
+
+/* Hidden Audio Player */
+#voicePlayer { display: none; }
+
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<audio id="voicePlayer"></audio>
+
+<div id="login-screen">
+    <h2>RESTRICTED ACCESS</h2>
+    <input type="password" id="godKey" placeholder="ENTER ACCESS KEY">
+    <button onclick="unlockSystem()">AUTHENTICATE</button>
+    <p id="loginMsg" style="color:red; font-size:12px; height:15px;"></p>
 </div>
 
-</div>  <script>  
-// ================= CONFIG =================  
-// 🔴 WARNING: Check your Render URL carefully!   
-const BASE_URL = "https://ftm-2077.onrender.com";   
-const API_URL = `${BASE_URL}/api`;  
-  
-let lastAudioUrl = null;  
-const audioPlayer = new Audio();  
-audioPlayer.preload = "auto"; // ✅ FIX #3: Force Preload  
-  
-// ✅ FIX #1: Mobile Audio Unlock (The Magic Trick)  
-document.body.addEventListener("click", () => {  
-    // Just playing a silent promise to unlock the audio engine  
-    audioPlayer.play().then(() => {  
-        audioPlayer.pause();  
-        audioPlayer.currentTime = 0;  
-    }).catch(() => {});  
-}, { once: true }); // Only runs once on first tap  
-  
-// ================= MATRIX RAIN =================  
-const canvas = document.getElementById("matrix");  
-const ctx = canvas.getContext("2d");  
-  
-function resizeCanvas() {  
-    canvas.width = window.innerWidth;  
-    canvas.height = window.innerHeight;  
-}  
-window.addEventListener('resize', resizeCanvas);  
-resizeCanvas();  
-  
-const letters = "01FTM2077XYΩ";  
-const drops = Array(Math.floor(canvas.width / 20)).fill(1);  
-  
-function drawMatrix() {  
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";  
-    ctx.fillRect(0, 0, canvas.width, canvas.height);  
-    ctx.fillStyle = "#0f0";  
-    ctx.font = "14px monospace";  
-  
-    drops.forEach((y, i) => {  
-        const text = letters[Math.floor(Math.random() * letters.length)];  
-        ctx.fillText(text, i * 20, y * 20);  
-        if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;  
-        drops[i]++;  
-    });  
-}  
-setInterval(drawMatrix, 50);  
-  
-// ================= LOGIC =================  
-async function sendMission() {  
-    const input = document.getElementById("missionInput");  
-    const output = document.getElementById("missionOutput");  
-    const scrollBox = document.getElementById("scrollBox");  
-    const playBtn = document.getElementById("playVoiceBtn");  
-    const execBtn = document.getElementById("execBtn");  
-  
-    const cmd = input.value.trim();  
-    if (!cmd) return;  
-  
-    // UI Updates  
-    output.innerText += `\n\n> Sending: ${cmd}...`;  
-    scrollBox.scrollTop = scrollBox.scrollHeight;  
-    execBtn.disabled = true;  
-    execBtn.innerText = "UPLOADING...";  
-    playBtn.style.display = "none";  
-    input.value = "";   
-  
-    try {  
-        const res = await fetch(`${API_URL}/execute`, {  
-            method: "POST",  
-            headers: { "Content-Type": "application/json" },  
-            body: JSON.stringify({ command: cmd, persona: "JARVIS" })  
-        });  
-  
-        const data = await res.json();  
-          
-        const timestamp = new Date().toLocaleTimeString();  
-        output.innerText += `\n[${timestamp}] RESPONSE:\n${JSON.stringify(data, null, 2)}`;  
-          
-        // ✅ FINAL AUDIO LOGIC  
-        if (data.audio) {  
-            // ✅ FIX #2: Ensure URL match  
-            lastAudioUrl = data.audio.startsWith("http")   
-                ? data.audio   
-                : `${BASE_URL}${data.audio}`;  
-              
-            console.log("Audio Source:", lastAudioUrl); // Debugging  
-              
-            audioPlayer.src = lastAudioUrl;  
-            audioPlayer.load(); // Refresh buffer  
-  
-            // Try Auto-play  
-            const playPromise = audioPlayer.play();  
-              
-            if (playPromise !== undefined) {  
-                playPromise.catch(error => {  
-                    console.warn("Autoplay blocked. Showing button.", error);  
-                    playBtn.style.display = "block"; // Show button if blocked  
-                });  
-            }  
-        }  
-  
-    } catch (err) {  
-        output.innerText += `\n❌ ERROR: System Failure. Check connection to: ${BASE_URL}`;  
-        console.error(err);  
-    } finally {  
-        execBtn.disabled = false;  
-        execBtn.innerText = "EXECUTE";  
-        scrollBox.scrollTop = scrollBox.scrollHeight;  
-    }  
-}  
-  
-// Manual Play  
-document.getElementById("playVoiceBtn").onclick = () => {  
-    if (lastAudioUrl) {  
-        audioPlayer.play();  
-        document.getElementById("playVoiceBtn").style.display = "none";  
-    }  
-};  
-</script>  </body>  
-</html>  
+<div id="system-ui">
+    <div class="output-box" id="scrollBox">
+        <h3 style="margin-top:0; border-bottom:1px dashed #0f0;">NEURAL TERMINAL V2.0</h3>
+        <pre id="missionOutput" style="white-space: pre-wrap;">System Locked. Awaiting Authorization...</pre>
+    </div>
+
+    <div class="input-container">
+        <div style="font-size:12px; background:#002200; display:inline-block; padding:2px;">COMMANDER@FTM-2077</div>
+        <textarea id="missionInput" placeholder="Enter directive..."></textarea>
+        <button onclick="sendMission()" id="execBtn">EXECUTE</button>
+    </div>
+</div>
+
+<script>
+// ================= CONFIG =================
+const API = "https://ftm-2077.onrender.com"; 
+const voicePlayer = document.getElementById("voicePlayer");
+voicePlayer.preload = "auto";
+let audioUnlocked = false;
+
+// ================= AUDIO UNLOCK (MOBILE FIX) =================
+function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+
+    // Silent 1-frame WAV
+    const silentWav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+
+    voicePlayer.src = silentWav;
+    voicePlayer.load(); // Ensure buffer readiness
+    voicePlayer.play().then(() => {
+        voicePlayer.pause();
+        voicePlayer.currentTime = 0;
+        console.log("Audio Engine Unlocked 🔓");
+    }).catch(() => {});
+}
+
+// Unlock on any interaction
+document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("touchstart", unlockAudio, { once: true });
+
+// ================= LOGIN SYSTEM =================
+function unlockSystem() {
+    const key = document.getElementById("godKey").value.trim();
+    const msg = document.getElementById("loginMsg");
+
+    if (key === "OMEGA-777") {
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("system-ui").style.display = "flex";
+        
+        // 🔧 FIX 2: Body Overflow Lock (Ensures internal scrolling works)
+        document.body.style.overflow = "hidden";
+        
+        bootFace(); 
+        unlockAudio();
+    } else {
+        msg.innerText = "ACCESS DENIED: INVALID KEY";
+        document.getElementById("godKey").value = "";
+    }
+}
+
+// Visual Boot Effect
+function bootFace() {
+    const out = document.getElementById("missionOutput");
+    out.innerText = "AUTHORIZATION ACCEPTED.\nINITIALIZING AI CORE...\nCONNECTING TO SERVER...\nONLINE.";
+}
+
+// ================= SEND MISSION =================
+async function sendMission() {
+    const input = document.getElementById("missionInput");
+    const output = document.getElementById("missionOutput");
+    const execBtn = document.getElementById("execBtn");
+
+    const text = input.value.trim();
+    if (!text) return;
+
+    // UI Feedback
+    output.innerText += `\n\n> Sending: ${text}...`;
+    input.value = "";
+    execBtn.disabled = true;
+    execBtn.innerText = "PROCESSING...";
+
+    // Auto Scroll
+    const scrollBox = document.getElementById("scrollBox");
+    scrollBox.scrollTop = scrollBox.scrollHeight;
+
+    try {
+        const res = await fetch(`${API}/api/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                command: text,
+                persona: "JARVIS"
+            })
+        });
+
+        if (!res.ok) throw new Error("Backend Error");
+
+        const data = await res.json();
+
+        // Show Output
+        output.innerText += `\n> RESPONSE:\n${JSON.stringify(data, null, 2)}`;
+
+        // Play Voice
+        if (data.audio) {
+            const audioUrl = data.audio.startsWith("http")
+                ? data.audio
+                : `${API}${data.audio}`;
+
+            console.log("Playing:", audioUrl);
+
+            voicePlayer.src = audioUrl;
+            
+            // 🔧 FIX 1: Essential for Mobile Stability
+            voicePlayer.load(); 
+            
+            voicePlayer.play().catch(err => {
+                output.innerText += "\n[WARN] Autoplay blocked. Tap screen.";
+            });
+        }
+
+    } catch (err) {
+        output.innerText += "\n❌ ERROR: Backend Unreachable.";
+    } finally {
+        execBtn.disabled = false;
+        execBtn.innerText = "EXECUTE";
+        scrollBox.scrollTop = scrollBox.scrollHeight;
+    }
+}
+
+// ================= MATRIX RAIN =================
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const letters = "01FTM2077Ω";
+const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+
+function drawMatrix() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = "14px monospace";
+    drops.forEach((y, i) => {
+        const text = letters[Math.floor(Math.random() * letters.length)];
+        ctx.fillText(text, i * 20, y * 20);
+        if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+    });
+}
+setInterval(drawMatrix, 50);
+
+</script>
+</body>
+</html>
