@@ -2,10 +2,40 @@
 // CONFIG
 // ================================
 const API = "https://ftm-2077.onrender.com"; 
-// ⚠️ যদি backend URL আলাদা হয়, এখানে শুধু এটা বদলাবি
+// ⚠️ Backend root URL
 
 // ================================
-// UNLOCK SYSTEM
+// AUDIO SETUP (GLOBAL)
+// ================================
+const voicePlayer = document.getElementById("voicePlayer");
+voicePlayer.preload = "auto";
+let audioUnlocked = false;
+
+// 🔓 HARD AUDIO UNLOCK (Mobile Safari / Chrome fix)
+function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+
+    // 1-frame silent WAV (base64)
+    const silentWav =
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+
+    voicePlayer.src = silentWav;
+    voicePlayer.load();
+    voicePlayer.play()
+        .then(() => {
+            voicePlayer.pause();
+            voicePlayer.currentTime = 0;
+        })
+        .catch(() => {});
+}
+
+// Unlock audio on first user interaction
+document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("touchstart", unlockAudio, { once: true });
+
+// ================================
+// UNLOCK SYSTEM (UI ONLY)
 // ================================
 function unlockSystem() {
     const key = document.getElementById("godKey").value.trim();
@@ -15,11 +45,10 @@ function unlockSystem() {
         return;
     }
 
-    // শুধু frontend unlock animation
     if (key === "OMEGA-777") {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("system-ui").style.display = "block";
-        bootFace();
+        if (typeof bootFace === "function") bootFace();
         return;
     }
 
@@ -32,7 +61,6 @@ function unlockSystem() {
 async function sendMission() {
     const input = document.getElementById("missionInput");
     const output = document.getElementById("missionOutput");
-    const voicePlayer = document.getElementById("voicePlayer");
 
     const text = input.value.trim();
     if (!text) return;
@@ -43,40 +71,38 @@ async function sendMission() {
     try {
         const res = await fetch(`${API}/api/execute`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 command: text,
                 persona: "JARVIS"
             })
         });
 
-        if (!res.ok) {
-            throw new Error("Backend error");
-        }
+        if (!res.ok) throw new Error("Backend error");
 
         const data = await res.json();
 
-        // ================================
+        // ----------------
         // SHOW OUTPUT
-        // ================================
+        // ----------------
         output.textContent = JSON.stringify(data, null, 2);
 
-        // ================================
-        // PLAY VOICE (IMPORTANT PART)
-        // ================================
+        // ----------------
+        // PLAY VOICE
+        // ----------------
         if (data.audio) {
-            const audioUrl = API + data.audio;
+            const audioUrl = data.audio.startsWith("http")
+                ? data.audio
+                : `${API}${data.audio}`;
+
             console.log("Playing audio:", audioUrl);
 
             voicePlayer.pause();
             voicePlayer.src = audioUrl;
             voicePlayer.load();
 
-            // Mobile fix (user interaction already happened)
             voicePlayer.play().catch(err => {
-                console.warn("Audio autoplay blocked:", err);
+                console.warn("Autoplay blocked, tap screen once:", err);
             });
         }
 
