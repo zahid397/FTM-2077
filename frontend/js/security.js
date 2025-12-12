@@ -1,10 +1,10 @@
+const API = "https://ftm-2077.onrender.com";
+
 async function unlockSystem() {
-    const key = document.getElementById("godKey").value.trim();
-    if (!key) return alert("OMEGA-777");
+    const key = document.getElementById("godKey").value;
 
     try {
-        // LOGIN
-        const res = await fetch(`${window.BACKEND}/auth/login`, {
+        const res = await fetch(`${API}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: key })
@@ -12,23 +12,15 @@ async function unlockSystem() {
 
         const data = await res.json();
 
-        if (data.status !== "SUCCESS") {
-            alert("ACCESS DENIED");
-            return;
+        if (data.status === "SUCCESS") {
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("system-ui").style.display = "block";
+            bootFace();
+        } else {
+            alert("Invalid Key");
         }
 
-        // GOD MODE
-        await fetch(`${window.BACKEND}/api/godmode?key=${encodeURIComponent(key)}`, {
-            method: "POST"
-        });
-
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("system-ui").style.display = "block";
-
-        bootFace();
-
     } catch (e) {
-        console.error(e);
         alert("Backend unreachable");
     }
 }
