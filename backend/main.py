@@ -2,24 +2,28 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import sys
 import os
 
-# Ensure root path
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(ROOT_DIR)
+# -----------------------
+# LOAD SETTINGS (FIXED)
+# -----------------------
+from backend.config import Settings
+
+settings = Settings()
+settings.ensure_folders()
 
 # -----------------------
-# CONFIG + INTERNAL MODULES
+# INTERNAL MODULES
 # -----------------------
-from backend.config import settings
 from backend.models.mission_model import MissionRequest
 from backend.utils.logger import sys_log
 from backend.utils.log_stream import streamer
 from backend.core.fusion_engine import fusion
 from backend.services.security_engine import security
 
-# Optional services (safe import)
+# -----------------------
+# OPTIONAL MODULES (SAFE)
+# -----------------------
 try:
     from backend.services.audio_engine import audio_engine
 except Exception:
@@ -34,6 +38,7 @@ try:
     from backend.services.report_engine import report_engine
 except Exception:
     report_engine = None
+
 
 # -----------------------
 # APP INIT
@@ -54,7 +59,7 @@ app.add_middleware(
 )
 
 # -----------------------
-# STATIC FILES (Audio)
+# STATIC FILES (AUDIO)
 # -----------------------
 if os.path.exists(settings.AUDIO_DIR):
     app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
@@ -112,7 +117,7 @@ async def execute(req: MissionRequest):
     # 1. Fusion Engine
     result = fusion.process(req.command, req.persona)
 
-    # 2. Audio Generation
+    # 2. Audio (optional)
     if audio_engine:
         try:
             result["audio"] = audio_engine.generate_voice(
@@ -122,7 +127,7 @@ async def execute(req: MissionRequest):
         except Exception as e:
             sys_log.log("AUDIO", f"Audio failed: {e}")
 
-    # 3. Report + Cloud Upload
+    # 3. Report + Cloud upload (optional)
     if report_engine:
         try:
             rep = report_engine.create_mission_report(result)
@@ -136,7 +141,6 @@ async def execute(req: MissionRequest):
                 if cloud:
                     result["cloud_report"] = cloud
                     await streamer.broadcast("Report uploaded to cloud", "CLOUD")
-
         except Exception as e:
             sys_log.log("REPORT", f"Report failed: {e}")
 
@@ -160,7 +164,7 @@ async def toggle_god(key: str):
     return {"status": "ERROR"}
 
 # -----------------------
-# LOCAL RUN (DEV ONLY)
+# LOCAL DEV SUPPORT
 # -----------------------
 if __name__ == "__main__":
     import uvicorn
