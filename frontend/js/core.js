@@ -1,56 +1,35 @@
-const API = "https://ftm-2077.onrender.com/api";
-
-let audioUnlocked = false;
-let audioPlayer = null;
-
-function initAudioUnlock() {
-    if (!audioPlayer) {
-        audioPlayer = document.createElement("audio");
-        audioPlayer.style.display = "none";
-        document.body.appendChild(audioPlayer);
-    }
-
-    // user interaction unlock
-    audioPlayer.play().then(() => {
-        audioUnlocked = true;
-    }).catch(() => {
-        audioUnlocked = false;
-    });
-}
+const API = "https://ftm-2077.onrender.com/api"; // 🔥 তোমার backend
 
 async function sendMission() {
-    initAudioUnlock();
+  const cmd = document.getElementById("cmd").value;
+  const output = document.getElementById("output");
+  const player = document.getElementById("voicePlayer");
 
-    const text = document.getElementById("missionInput").value.trim();
-    if (!text) return;
+  output.textContent = "Processing...";
 
-    document.getElementById("missionOutput").innerText = "Processing...";
+  try {
+    const res = await fetch(`${API}/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command: cmd,
+        persona: "JARVIS"
+      })
+    });
 
-    try {
-        const res = await fetch(`${API}/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                command: text,
-                persona: "JARVIS"
-            })
-        });
+    const data = await res.json();
+    output.textContent = JSON.stringify(data, null, 2);
 
-        const data = await res.json();
-        document.getElementById("missionOutput").innerText =
-            JSON.stringify(data, null, 2);
-
-        // 🔊 PLAY AUDIO
-        if (data.audio && audioUnlocked) {
-            audioPlayer.src = `${API.replace("/api", "")}${data.audio}`;
-            audioPlayer.load();
-            audioPlayer.play().catch(() => {
-                alert("Tap EXECUTE again to enable voice 🔊");
-            });
-        }
-
-    } catch (err) {
-        document.getElementById("missionOutput").innerText =
-            "ERROR: Backend unreachable.";
+    // 🔊 PLAY VOICE IF EXISTS
+    if (data.audio) {
+      player.src = "https://ftm-2077.onrender.com" + data.audio;
+      player.style.display = "block";
+      player.play().catch(() => {
+        console.log("User interaction required for audio");
+      });
     }
+
+  } catch (err) {
+    output.textContent = "Backend unreachable ❌";
+  }
 }
