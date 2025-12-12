@@ -1,21 +1,13 @@
 async function unlockSystem() {
     const key = document.getElementById("godKey").value.trim();
-
-    if (!key) {
-        alert("OMEGA-777");
-        return;
-    }
+    if (!key) return alert("OMEGA-777");
 
     try {
-        // 1️⃣ Login (auth)
+        // LOGIN
         const res = await fetch(`${window.BACKEND}/auth/login`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                password: key
-            })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: key })
         });
 
         const data = await res.json();
@@ -25,19 +17,18 @@ async function unlockSystem() {
             return;
         }
 
-        // 2️⃣ Toggle GOD MODE (optional but matches backend)
+        // GOD MODE
         await fetch(`${window.BACKEND}/api/godmode?key=${encodeURIComponent(key)}`, {
             method: "POST"
         });
 
-        // 3️⃣ Unlock UI
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("system-ui").style.display = "block";
 
         bootFace();
 
-    } catch (err) {
-        console.error(err);
+    } catch (e) {
+        console.error(e);
         alert("Backend unreachable");
     }
 }
