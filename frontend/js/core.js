@@ -1,142 +1,181 @@
-// ================================
+// ===================================
 // CONFIG
-// ================================
+// ===================================
 const API = "https://ftm-2077.onrender.com";
+const DEFAULT_PERSONA = "JARVIS";
 
-// ================================
-// AUDIO SETUP (GLOBAL)
-// ================================
-const voicePlayer = document.getElementById("voicePlayer");
+// ===================================
+// GLOBAL STATE
+// ===================================
+let isRunning = false;
 let audioUnlocked = false;
 
+// ===================================
+// DOM
+// ===================================
+const inputEl = document.getElementById("missionInput");
+const outputEl = document.getElementById("missionOutput");
+const playVoiceBtn = document.getElementById("playVoiceBtn");
+const voicePlayer = document.getElementById("voicePlayer");
+
+// ===================================
+// AUDIO SETUP (MOBILE SAFE)
+// ===================================
 voicePlayer.preload = "auto";
-voicePlayer.setAttribute("playsinline", "true"); // iOS fix
+voicePlayer.setAttribute("playsinline", "true");
 
-// 🔓 Mobile audio unlock
 function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
+  if (audioUnlocked) return;
+  audioUnlocked = true;
 
-    const silentWav =
-        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+  const silentWav =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
-    voicePlayer.src = silentWav;
-    voicePlayer.load();
+  voicePlayer.src = silentWav;
+  voicePlayer.load();
 
-    voicePlayer.play()
-        .then(() => {
-            voicePlayer.pause();
-            voicePlayer.currentTime = 0;
-            console.log("🔊 Audio unlocked");
-        })
-        .catch(() => {});
+  voicePlayer.play()
+    .then(() => {
+      voicePlayer.pause();
+      voicePlayer.currentTime = 0;
+      console.log("🔊 Audio unlocked");
+    })
+    .catch(() => {});
 }
 
-// one-time user interaction
 document.addEventListener("click", unlockAudio, { once: true });
 document.addEventListener("touchstart", unlockAudio, { once: true });
 
-// ================================
-// TYPING EFFECT
-// ================================
-function typeText(target, text, speed = 18) {
-    return new Promise(resolve => {
-        let i = 0;
-
-        function type() {
-            if (i < text.length) {
-                target.textContent += text.charAt(i);
-                i++;
-                target.parentElement.scrollTop =
-                    target.parentElement.scrollHeight;
-                setTimeout(type, speed);
-            } else {
-                resolve();
-            }
-        }
-
-        type();
-    });
-}
-
-// ================================
-// PLAY VOICE
-// ================================
 function playVoice() {
-    if (!voicePlayer.src) return;
+  if (!voicePlayer.src) return;
+  if (voicePlayer.readyState < 2) {
+    voicePlayer.oncanplay = () => voicePlayer.play();
+  } else {
     voicePlayer.currentTime = 0;
-    voicePlayer.play().catch(() => {
-        alert("Tap screen once to enable audio");
-    });
+    voicePlayer.play();
+  }
 }
 
-// ================================
-// SEND MISSION (MAIN)
-// ================================
+// ===================================
+// TYPING EFFECT
+// ===================================
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function typeText(target, text, speed = 18) {
+  for (let i = 0; i < text.length; i++) {
+    target.textContent += text[i];
+    target.parentElement.scrollTop =
+      target.parentElement.scrollHeight;
+    await sleep(speed);
+  }
+}
+
+// ===================================
+// SEND MISSION (API)
+// ===================================
 async function sendMission() {
-    const input = document.getElementById("missionInput");
-    const output = document.getElementById("missionOutput");
-    const scrollBox = document.getElementById("scrollBox");
+  if (isRunning) return;
+  const text = inputEl.value.trim();
+  if (!text) return;
 
-    const text = input.value.trim();
-    if (!text) return;
+  isRunning = true;
+  playVoiceBtn.style.display = "none";
 
-    // show user command
-    output.textContent += `\n\n> ${text}\n`;
-    input.value = "";
-    scrollBox.scrollTop = scrollBox.scrollHeight;
+  outputEl.textContent += `\n\n> ${text}\n`;
+  inputEl.value = "";
 
-    try {
-        const res = await fetch(`${API}/api/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                command: text,
-                persona: "JARVIS"
-            })
-        });
+  try {
+    const res = await fetch(`${API}/api/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command: text,
+        persona: DEFAULT_PERSONA
+      })
+    });
 
-        if (!res.ok) throw new Error("Server error");
+    const data = await res.json();
 
-        const data = await res.json();
+    await typeText(
+      outputEl,
+      data.text || "[NO RESPONSE]",
+      18
+    );
 
-        // ----------------
-        // SHOW TEXT (NO JSON)
-        // ----------------
-        if (data.text) {
-            await typeText(output, data.text, 18);
-        } else {
-            await typeText(output, "[No response text]", 18);
-        }
-
-        scrollBox.scrollTop = scrollBox.scrollHeight;
-
-        // ----------------
-        // LOAD VOICE (OPTIONAL)
-        // ----------------
-        if (data.audio) {
-            const audioUrl = data.audio.startsWith("http")
-                ? data.audio
-                : `${API}${data.audio}`;
-
-            voicePlayer.pause();
-            voicePlayer.currentTime = 0;
-            voicePlayer.src = audioUrl;
-            voicePlayer.load();
-        }
-
-    } catch (err) {
-        console.error(err);
-        output.textContent += "\n❌ SYSTEM ERROR\n";
+    // optional voice
+    if (data.audio) {
+      voicePlayer.src = data.audio.startsWith("http")
+        ? data.audio
+        : `${API}${data.audio}`;
+      playVoiceBtn.style.display = "block";
     }
+
+  } catch (e) {
+    outputEl.textContent += "\n❌ SYSTEM ERROR\n";
+  } finally {
+    isRunning = false;
+  }
 }
 
-// ================================
+// ===================================
 // ENTER KEY SUPPORT
-// ================================
-document.getElementById("missionInput")?.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMission();
-    }
+// ===================================
+inputEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMission();
+  }
 });
+
+// ===================================
+// MATRIX BACKGROUND
+// ===================================
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+const chars = "01FTM2077ΩΔ";
+const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = "rgba(0,0,0,0.05)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#00ff00";
+  ctx.font = "15px monospace";
+
+  drops.forEach((y, i) => {
+    const t = chars[Math.random() * chars.length | 0];
+    ctx.fillText(t, i * 20, y * 20);
+
+    if (y * 20 > canvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+    drops[i]++;
+  });
+
+  requestAnimationFrame(drawMatrix);
+}
+drawMatrix();
+
+// ===================================
+// VISUAL FEEDBACK (VOICE)
+// ===================================
+voicePlayer.onplay = () =>
+  document.body.classList.add("speaking");
+
+voicePlayer.onended = () =>
+  document.body.classList.remove("speaking");
+
+// ===================================
+// READY
+// ===================================
+console.log("🟢 FTM-2077 CORE JS LOADED");
