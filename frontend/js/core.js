@@ -1,181 +1,115 @@
 // ===================================
-// CONFIG
+// 1. CONFIGURATION
 // ===================================
-const API = "https://ftm-2077.onrender.com";
+// তোর Render Backend-এর লিংক
+const API_URL = "https://ftm-2077.onrender.com/api/execute"; 
 const DEFAULT_PERSONA = "JARVIS";
 
 // ===================================
-// GLOBAL STATE
-// ===================================
-let isRunning = false;
-let audioUnlocked = false;
-
-// ===================================
-// DOM
+// 2. DOM ELEMENTS
 // ===================================
 const inputEl = document.getElementById("missionInput");
 const outputEl = document.getElementById("missionOutput");
-const playVoiceBtn = document.getElementById("playVoiceBtn");
-const voicePlayer = document.getElementById("voicePlayer");
 
 // ===================================
-// AUDIO SETUP (MOBILE SAFE)
+// 3. TYPING EFFECT (MATRIX STYLE)
 // ===================================
-voicePlayer.preload = "auto";
-voicePlayer.setAttribute("playsinline", "true");
+let isTyping = false;
 
-function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-
-  const silentWav =
-    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
-
-  voicePlayer.src = silentWav;
-  voicePlayer.load();
-
-  voicePlayer.play()
-    .then(() => {
-      voicePlayer.pause();
-      voicePlayer.currentTime = 0;
-      console.log("🔊 Audio unlocked");
-    })
-    .catch(() => {});
-}
-
-document.addEventListener("click", unlockAudio, { once: true });
-document.addEventListener("touchstart", unlockAudio, { once: true });
-
-function playVoice() {
-  if (!voicePlayer.src) return;
-  if (voicePlayer.readyState < 2) {
-    voicePlayer.oncanplay = () => voicePlayer.play();
-  } else {
-    voicePlayer.currentTime = 0;
-    voicePlayer.play();
-  }
-}
-
-// ===================================
-// TYPING EFFECT
-// ===================================
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-async function typeText(target, text, speed = 18) {
-  for (let i = 0; i < text.length; i++) {
-    target.textContent += text[i];
-    target.parentElement.scrollTop =
-      target.parentElement.scrollHeight;
-    await sleep(speed);
-  }
-}
-
-// ===================================
-// SEND MISSION (API)
-// ===================================
-async function sendMission() {
-  if (isRunning) return;
-  const text = inputEl.value.trim();
-  if (!text) return;
-
-  isRunning = true;
-  playVoiceBtn.style.display = "none";
-
-  outputEl.textContent += `\n\n> ${text}\n`;
-  inputEl.value = "";
-
-  try {
-    const res = await fetch(`${API}/api/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        command: text,
-        persona: DEFAULT_PERSONA
-      })
-    });
-
-    const data = await res.json();
-
-    await typeText(
-      outputEl,
-      data.text || "[NO RESPONSE]",
-      18
-    );
-
-    // optional voice
-    if (data.audio) {
-      voicePlayer.src = data.audio.startsWith("http")
-        ? data.audio
-        : `${API}${data.audio}`;
-      playVoiceBtn.style.display = "block";
+function typeWriter(text, element, speed = 20) {
+    if (isTyping) return; // Prevent overlapping
+    isTyping = true;
+    element.innerHTML = ""; // Clear previous text
+    
+    let i = 0;
+    function type() {
+        if (i < text.length) {
+            // Handle newlines
+            if (text.substring(i, i + 1) === '\n') {
+                element.innerHTML += "<br>";
+            } else {
+                element.innerHTML += text.charAt(i);
+            }
+            i++;
+            setTimeout(type, speed);
+        } else {
+            isTyping = false; // Finished typing
+        }
     }
-
-  } catch (e) {
-    outputEl.textContent += "\n❌ SYSTEM ERROR\n";
-  } finally {
-    isRunning = false;
-  }
+    type();
 }
 
 // ===================================
-// ENTER KEY SUPPORT
+// 4. VOICE ENGINE (BROWSER NATIVE)
 // ===================================
-inputEl.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMission();
-  }
+function speak(text) {
+    if (!window.speechSynthesis) return;
+    
+    // Stop any currently playing audio
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Try to find a cool voice (Google UK Male / Microsoft Hazel)
+    const voices = window.speechSynthesis.getVoices();
+    const jarvisVoice = voices.find(v => v.name.includes("UK") || v.name.includes("Male")) || voices[0];
+    
+    if (jarvisVoice) utterance.voice = jarvisVoice;
+    
+    utterance.pitch = 0.9; // Deep voice
+    utterance.rate = 1.1;  // Fast pace
+    
+    window.speechSynthesis.speak(utterance);
+}
+
+// ===================================
+// 5. MAIN MISSION LOGIC
+// ===================================
+async function runMission() {
+    const cmd = inputEl.value.trim();
+    if (!cmd) return;
+
+    // UI Feedback
+    inputEl.value = ""; 
+    outputEl.innerHTML = `<span style="color: cyan; animation: blink 1s infinite;">[CONNECTING TO NEURAL NET...]</span>`;
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                command: cmd, 
+                persona: DEFAULT_PERSONA 
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.text) {
+            // Success: Type text and Speak
+            typeWriter(data.text, outputEl);
+            speak(data.text);
+        } else {
+            outputEl.innerHTML = `<span style="color: red;">[ERROR]: EMPTY RESPONSE FROM CORE.</span>`;
+        }
+
+    } catch (error) {
+        console.error("Connection Error:", error);
+        outputEl.innerHTML = `<span style="color: red;">[SYSTEM FAILURE]: CANNOT REACH SERVER.<br>Make sure Backend is running.</span>`;
+    }
+}
+
+// ===================================
+// 6. EVENT LISTENERS
+// ===================================
+// Allow "Enter" key to submit
+inputEl.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        runMission();
+    }
 });
 
-// ===================================
-// MATRIX BACKGROUND
-// ===================================
-const canvas = document.getElementById("matrix");
-const ctx = canvas.getContext("2d");
-
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
-
-const chars = "01FTM2077ΩΔ";
-const drops = Array(Math.floor(canvas.width / 20)).fill(1);
-
-function drawMatrix() {
-  ctx.fillStyle = "rgba(0,0,0,0.05)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "#00ff00";
-  ctx.font = "15px monospace";
-
-  drops.forEach((y, i) => {
-    const t = chars[Math.random() * chars.length | 0];
-    ctx.fillText(t, i * 20, y * 20);
-
-    if (y * 20 > canvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
-    }
-    drops[i]++;
-  });
-
-  requestAnimationFrame(drawMatrix);
-}
-drawMatrix();
-
-// ===================================
-// VISUAL FEEDBACK (VOICE)
-// ===================================
-voicePlayer.onplay = () =>
-  document.body.classList.add("speaking");
-
-voicePlayer.onended = () =>
-  document.body.classList.remove("speaking");
-
-// ===================================
-// READY
-// ===================================
-console.log("🟢 FTM-2077 CORE JS LOADED");
+// Load voices immediately
+window.speechSynthesis.onvoiceschanged = () => {
+    console.log("🎤 Voice Module Loaded");
+};
