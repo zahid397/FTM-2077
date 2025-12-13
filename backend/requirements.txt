@@ -10,3 +10,4 @@ python-multipart
 websockets
 jinja2
 colorama
+websockets
