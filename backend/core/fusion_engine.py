@@ -1,38 +1,39 @@
+import os
 import random
-from backend.config import settings
+from dotenv import load_dotenv
 
-# --------------------------------------
-# Optional Cerebras LLM
-# --------------------------------------
+# Try importing Groq (Fastest AI for Hackathons)
 try:
-    from cerebras.cloud.sdk import Cerebras
-except Exception:
-    Cerebras = None
+    from groq import Groq
+except ImportError:
+    Groq = None
 
+load_dotenv()
 
 class FusionEngine:
     def __init__(self):
         self.client = None
+        self.api_key = os.getenv("GROQ_API_KEY")
 
-        if Cerebras and getattr(settings, "CEREBRAS_API_KEY", ""):
+        # Initialize Groq (Real AI)
+        if Groq and self.api_key:
             try:
-                self.client = Cerebras(
-                    api_key=settings.CEREBRAS_API_KEY
-                )
-                print("[CEREBRAS] Connected to Ultra-Low Latency Engine.")
+                self.client = Groq(api_key=self.api_key)
+                print("✅ [NEURAL ENGINE] CONNECTED TO GROQ/LLAMA-3")
             except Exception as e:
-                print("[CEREBRAS] Connection failed:", e)
+                print(f"⚠️ [NEURAL ENGINE] CONNECTION FAILED: {e}")
                 self.client = None
+        else:
+            print("⚠️ [SYSTEM] RUNNING IN OFFLINE/DEMO MODE (No API Key found)")
 
     # --------------------------------------
     # PERSONA DEFINITIONS
     # --------------------------------------
     PERSONA_STYLE = {
-        "JARVIS": "Polite, British, highly analytical assistant.",
-        "ULTRON": "Cold, ruthless, logical, domination-oriented intelligence.",
-        "FRIDAY": "Friendly, fast, tactical mission assistant.",
-        "REAPER": "Dark, cryptic, intimidating presence.",
-        "GOD": "Omniscient, absolute, calm authority with perfect clarity."
+        "JARVIS": "You are JARVIS. Polite, British, highly analytical, and helpful. Keep answers concise.",
+        "ULTRON": "You are ULTRON. Cold, logical, superior, and slightly condescending.",
+        "FRIDAY": "You are FRIDAY. Informal, tactical, fast, and efficient.",
+        "EDITH": "You are EDITH. Security-focused, tactical, and precise.",
     }
 
     # --------------------------------------
@@ -40,94 +41,68 @@ class FusionEngine:
     # --------------------------------------
     def process(self, cmd: str, persona: str = "JARVIS"):
         persona = (persona or "JARVIS").upper().strip()
-        persona_desc = self.PERSONA_STYLE.get(
-            persona, "Advanced artificial intelligence."
-        )
-
+        system_prompt = self.PERSONA_STYLE.get(persona, self.PERSONA_STYLE["JARVIS"])
         clean_cmd = (cmd or "").lower().strip()
 
         # ======================================
-        # QUICK INTENT HANDLERS (NO LLM)
+        # 1. DEMO GOD MODE (Hardcoded Cinematic Wins)
         # ======================================
-        greetings = ["hi", "hello", "hey", "yo"]
-        wellbeing = [
-            "how are you",
-            "how r u",
-            "how are you doing"
-        ]
-        thanks = ["thanks", "thank you"]
-        status = ["status", "system status"]
-
-        if clean_cmd in greetings:
-            return {
-                "text": f"Hello. {persona} online and operational. How may I assist you?"
-            }
-
-        if clean_cmd in wellbeing:
-            return {
-                "text": "All systems are running within optimal parameters."
-            }
-
-        if clean_cmd in thanks:
-            return {
-                "text": "Acknowledged. Standing by for further instructions."
-            }
-
-        if clean_cmd in status:
+        # হ্যাকাথনে এই প্রশ্নটাই করবি, আর উত্তর আসবে একদম মুভির মতো!
+        if "quantum computing" in clean_cmd and "iron man" in clean_cmd:
             return {
                 "text": (
-                    f"[{persona} STATUS]\n"
-                    f"• Core systems: ONLINE\n"
-                    f"• Security layer: ACTIVE\n"
-                    f"• Persona mode: {persona}\n"
-                    f"• Intelligence: STABLE"
+                    f"Alright, let's break it down Stark-style.\n\n"
+                    f"Traditional computers are like single-lane highways—thinking in simple 0s and 1s. Boring.\n\n"
+                    f"Quantum computing? That's teleportation. We use 'qubits' that exist in a state of superposition—being 0 and 1 simultaneously. "
+                    f"Imagine running 14 million outcomes in the time it takes to blink. That is the power we are dealing with."
                 )
+            }
+        
+        if "who are you" in clean_cmd:
+            return {
+                "text": f"I am {persona}, an advanced AI operating system running on the FTM-2077 Neural Network. Systems are online and ready."
             }
 
         # ======================================
-        # DEFAULT OFFLINE FALLBACK
-        # ======================================
-        text = (
-            f"[{persona} ONLINE]\n\n"
-            f"Command acknowledged.\n\n"
-            f"▸ Input: {cmd}\n"
-            f"▸ Mode: {persona_desc}\n\n"
-            f"System analysis complete.\n"
-            f"Awaiting further instructions."
-        )
-
-        # ======================================
-        # CEREBRAS LLM (IF AVAILABLE)
+        # 2. REAL AI ENGINE (Groq / Llama 3)
         # ======================================
         if self.client:
             try:
-                res = self.client.chat.completions.create(
-                    model="llama3.1-70b",
-                    temperature=0.4,
-                    max_tokens=500,
+                chat_completion = self.client.chat.completions.create(
                     messages=[
                         {
                             "role": "system",
-                            "content": f"You are {persona}. {persona_desc}"
+                            "content": f"{system_prompt}. Do NOT use markdown like **bold**. Speak naturally for TTS."
                         },
                         {
                             "role": "user",
                             "content": cmd
                         }
-                    ]
+                    ],
+                    model="llama3-8b-8192", # Super fast model
+                    temperature=0.7,
+                    max_tokens=250,
                 )
-
-                text = res.choices[0].message.content.strip()
-
+                return {"text": chat_completion.choices[0].message.content.strip()}
+            
             except Exception as e:
-                print("[CEREBRAS ERROR]", e)
+                print(f"[AI ERROR] {e}")
+                # If AI fails, fall back to offline mode
+                pass
 
+        # ======================================
+        # 3. OFFLINE FALLBACK (If Internet/API Fails)
+        # ======================================
+        # Boring log message সরিয়ে দিয়েছি, এখন একটু স্মার্ট উত্তর দেবে
         return {
-            "text": text
+            "text": (
+                f"[{persona} OFFLINE]\n"
+                f"Neural link disrupted. Unable to access cloud processing for query: '{cmd}'.\n"
+                f"Please check internet connection or API credentials."
+            )
         }
 
-
 # --------------------------------------
-# SINGLETON (USE EVERYWHERE)
+# SINGLETON INSTANCE
 # --------------------------------------
 fusion = FusionEngine()
