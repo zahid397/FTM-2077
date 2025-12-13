@@ -1,9 +1,11 @@
 import os
+from pydantic import BaseSettings, Field
 from dotenv import load_dotenv
 
 load_dotenv()
 
-class Settings:
+
+class Settings(BaseSettings):
     # -----------------------------------------------------
     # BASIC PROJECT DETAILS
     # -----------------------------------------------------
@@ -12,57 +14,47 @@ class Settings:
     API_PREFIX: str = "/api"
 
     # -----------------------------------------------------
-    # DIRECTORY PATHS (FIXED)
-    # -----------------------------------------------------
-    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    BASE_DIR = os.path.join(ROOT_DIR, "backend")
-
-    AUDIO_DIR = os.path.join(BASE_DIR, "audio")
-    LOGS_DIR = os.path.join(BASE_DIR, "logs")
-    REPORT_DIR = os.path.join(BASE_DIR, "reports")
-    CACHE_DIR = os.path.join(BASE_DIR, "cache")
-
-    # -----------------------------------------------------
     # NETWORK SETTINGS
     # -----------------------------------------------------
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    HOST: str = Field("0.0.0.0", env="HOST")
+    PORT: int = Field(8000, env="PORT")
 
     # -----------------------------------------------------
     # SECURITY & GOD MODE
     # -----------------------------------------------------
-    GOD_MODE: bool = False
-    GOD_MODE_KEY: str = os.getenv("GOD_MODE_KEY", "")
-
-    def validate_god_key(self, key):
-        return key == self.GOD_MODE_KEY
+    GOD_MODE_KEY: str = Field("", env="GOD_MODE_KEY")
+    GOD_MODE: bool = False  # auto-calculated
 
     # -----------------------------------------------------
-    # ELEVENLABS
+    # DIRECTORY PATHS
     # -----------------------------------------------------
-    ELEVENLABS_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-    ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+    ROOT_DIR: str = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..")
+    )
+    BASE_DIR: str = os.path.join(ROOT_DIR, "backend")
+
+    AUDIO_DIR: str = os.path.join(BASE_DIR, "audio")
+    LOGS_DIR: str = os.path.join(BASE_DIR, "logs")
+    REPORT_DIR: str = os.path.join(BASE_DIR, "reports")
+    CACHE_DIR: str = os.path.join(BASE_DIR, "cache")
 
     # -----------------------------------------------------
-    # VULTR STORAGE CONFIG  (NAME FIXED)
+    # POST INIT
     # -----------------------------------------------------
-    VULTR_ACCESS = os.getenv("VULTR_ACCESS_KEY", "")
-    VULTR_SECRET = os.getenv("VULTR_SECRET_KEY", "")
-    VULTR_BUCKET = os.getenv("VULTR_BUCKET_NAME", "")
-    VULTR_ENDPOINT = os.getenv("VULTR_ENDPOINT", "https://ewr1.vultrobjects.com")
+    def __init__(self, **values):
+        super().__init__(**values)
 
-    # -----------------------------------------------------
-    # LIQUIDMETAL RAINDROP
-    # -----------------------------------------------------
-    RAINDROP_API_KEY = os.getenv("RAINDROP_API_KEY", "")
+        # Auto-enable GOD MODE if key exists
+        self.GOD_MODE = bool(self.GOD_MODE_KEY)
 
-    # -----------------------------------------------------
-    # AUTO CREATE FOLDERS (NO CRASH)
-    # -----------------------------------------------------
-    def ensure_folders(self):
-        for d in [self.AUDIO_DIR, self.LOGS_DIR, self.REPORT_DIR, self.CACHE_DIR]:
-            os.makedirs(d, exist_ok=True)
+        # Ensure directories exist
+        for path in [
+            self.AUDIO_DIR,
+            self.LOGS_DIR,
+            self.REPORT_DIR,
+            self.CACHE_DIR
+        ]:
+            os.makedirs(path, exist_ok=True)
 
 
 settings = Settings()
-settings.ensure_folders()
