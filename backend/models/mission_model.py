@@ -32,3 +32,4 @@ class MissionRequest(BaseModel):
         if not v or not str(v).strip():
             raise ValueError("Command cannot be empty.")
         return str(v).strip()
+        
