@@ -1,6 +1,7 @@
 import os
-from pydantic import BaseSettings, Field
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 load_dotenv()
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     # SECURITY & GOD MODE
     # -----------------------------------------------------
     GOD_MODE_KEY: str = Field("", env="GOD_MODE_KEY")
-    GOD_MODE: bool = False  # auto-calculated
+    GOD_MODE: bool = False
 
     # -----------------------------------------------------
     # DIRECTORY PATHS
@@ -44,17 +45,18 @@ class Settings(BaseSettings):
     def __init__(self, **values):
         super().__init__(**values)
 
-        # Auto-enable GOD MODE if key exists
+        # Auto-enable GOD MODE
         self.GOD_MODE = bool(self.GOD_MODE_KEY)
 
         # Ensure directories exist
-        for path in [
+        for path in (
             self.AUDIO_DIR,
             self.LOGS_DIR,
             self.REPORT_DIR,
-            self.CACHE_DIR
-        ]:
+            self.CACHE_DIR,
+        ):
             os.makedirs(path, exist_ok=True)
 
 
+# 🔥 SINGLETON INSTANCE (USE THIS EVERYWHERE)
 settings = Settings()
