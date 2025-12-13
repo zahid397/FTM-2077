@@ -1,7 +1,12 @@
 import os
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
-from pydantic import Field
+
+# 🔒 HARDENED IMPORT (pydantic v1 + v2 safe)
+try:
+    from pydantic_settings import BaseSettings
+    from pydantic import Field
+except ImportError:
+    from pydantic import BaseSettings, Field
 
 load_dotenv()
 
@@ -17,13 +22,13 @@ class Settings(BaseSettings):
     # -----------------------------------------------------
     # NETWORK SETTINGS
     # -----------------------------------------------------
-    HOST: str = Field("0.0.0.0", env="HOST")
-    PORT: int = Field(8000, env="PORT")
+    HOST: str = Field(default="0.0.0.0", env="HOST")
+    PORT: int = Field(default=8000, env="PORT")
 
     # -----------------------------------------------------
     # SECURITY & GOD MODE
     # -----------------------------------------------------
-    GOD_MODE_KEY: str = Field("", env="GOD_MODE_KEY")
+    GOD_MODE_KEY: str = Field(default="", env="GOD_MODE_KEY")
     GOD_MODE: bool = False
 
     # -----------------------------------------------------
@@ -58,5 +63,5 @@ class Settings(BaseSettings):
             os.makedirs(path, exist_ok=True)
 
 
-# 🔥 SINGLETON INSTANCE (USE THIS EVERYWHERE)
+# 🔥 SINGLETON INSTANCE
 settings = Settings()
