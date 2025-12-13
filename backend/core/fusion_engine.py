@@ -1,7 +1,9 @@
 import random
 from backend.config import settings
 
-# Optional Cerebras
+# --------------------------------------
+# Optional Cerebras LLM
+# --------------------------------------
 try:
     from cerebras.cloud.sdk import Cerebras
 except Exception:
@@ -14,15 +16,17 @@ class FusionEngine:
 
         if Cerebras and getattr(settings, "CEREBRAS_API_KEY", ""):
             try:
-                self.client = Cerebras(api_key=settings.CEREBRAS_API_KEY)
+                self.client = Cerebras(
+                    api_key=settings.CEREBRAS_API_KEY
+                )
                 print("[CEREBRAS] Connected to Ultra-Low Latency Engine.")
             except Exception as e:
                 print("[CEREBRAS] Connection failed:", e)
                 self.client = None
 
-    # -----------------------------------------------------
-    # PERSONA STYLES
-    # -----------------------------------------------------
+    # --------------------------------------
+    # PERSONA DEFINITIONS
+    # --------------------------------------
     PERSONA_STYLE = {
         "JARVIS": "Polite, British, highly analytical assistant.",
         "ULTRON": "Cold, ruthless, logical, domination-oriented intelligence.",
@@ -31,20 +35,59 @@ class FusionEngine:
         "GOD": "Omniscient, absolute, calm authority with perfect clarity."
     }
 
-    # -----------------------------------------------------
-    # MAIN PROCESSING
-    # -----------------------------------------------------
+    # --------------------------------------
+    # MAIN PROCESSOR
+    # --------------------------------------
     def process(self, cmd: str, persona: str = "JARVIS"):
         persona = (persona or "JARVIS").upper().strip()
-
         persona_desc = self.PERSONA_STYLE.get(
-            persona, "Standard advanced artificial intelligence."
+            persona, "Advanced artificial intelligence."
         )
 
-        # -----------------------------
-        # OFFLINE FALLBACK (NO LLM)
-        # -----------------------------
-        offline_text = (
+        clean_cmd = (cmd or "").lower().strip()
+
+        # ======================================
+        # QUICK INTENT HANDLERS (NO LLM)
+        # ======================================
+        greetings = ["hi", "hello", "hey", "yo"]
+        wellbeing = [
+            "how are you",
+            "how r u",
+            "how are you doing"
+        ]
+        thanks = ["thanks", "thank you"]
+        status = ["status", "system status"]
+
+        if clean_cmd in greetings:
+            return {
+                "text": f"Hello. {persona} online and operational. How may I assist you?"
+            }
+
+        if clean_cmd in wellbeing:
+            return {
+                "text": "All systems are running within optimal parameters."
+            }
+
+        if clean_cmd in thanks:
+            return {
+                "text": "Acknowledged. Standing by for further instructions."
+            }
+
+        if clean_cmd in status:
+            return {
+                "text": (
+                    f"[{persona} STATUS]\n"
+                    f"• Core systems: ONLINE\n"
+                    f"• Security layer: ACTIVE\n"
+                    f"• Persona mode: {persona}\n"
+                    f"• Intelligence: STABLE"
+                )
+            }
+
+        # ======================================
+        # DEFAULT OFFLINE FALLBACK
+        # ======================================
+        text = (
             f"[{persona} ONLINE]\n\n"
             f"Command acknowledged.\n\n"
             f"▸ Input: {cmd}\n"
@@ -53,11 +96,9 @@ class FusionEngine:
             f"Awaiting further instructions."
         )
 
-        text = offline_text
-
-        # -----------------------------
-        # CEREBRAS EXECUTION
-        # -----------------------------
+        # ======================================
+        # CEREBRAS LLM (IF AVAILABLE)
+        # ======================================
         if self.client:
             try:
                 res = self.client.chat.completions.create(
@@ -76,25 +117,17 @@ class FusionEngine:
                     ]
                 )
 
-                ai_text = res.choices[0].message.content
-                if ai_text and ai_text.strip():
-                    text = ai_text.strip()
+                text = res.choices[0].message.content.strip()
 
             except Exception as e:
                 print("[CEREBRAS ERROR]", e)
-                text = offline_text
 
-        # -----------------------------
-        # FINAL RESPONSE PACKET
-        # -----------------------------
         return {
-            "status": "SUCCESS",
-            "persona": persona,
-            "command": cmd,
-            "text": text,          # 🔥 frontend typing effect ready
-            "audio": None,         # 🔊 future TTS hook
-            "confidence": random.randint(88, 99)
+            "text": text
         }
 
 
+# --------------------------------------
+# SINGLETON (USE EVERYWHERE)
+# --------------------------------------
 fusion = FusionEngine()
