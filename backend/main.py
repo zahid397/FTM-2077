@@ -1,16 +1,12 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 import os
 
 # -----------------------
-# LOAD SETTINGS (FIXED)
+# LOAD SETTINGS
 # -----------------------
-from backend.config import Settings
-
-settings = Settings()
-settings.ensure_folders()
+from backend.config import settings
 
 # -----------------------
 # INTERNAL MODULES
@@ -34,143 +30,94 @@ try:
 except Exception:
     vultr = None
 
-try:
-    from backend.services.report_engine import report_engine
-except Exception:
-    report_engine = None
 
-
-# -----------------------
-# APP INIT
-# -----------------------
+# =====================================================
+# FASTAPI APP INIT
+# =====================================================
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION
 )
 
 # -----------------------
-# CORS
+# CORS (OPEN FOR NOW)
 # -----------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -----------------------
-# STATIC FILES (AUDIO)
+# STATIC AUDIO SERVING
 # -----------------------
 if os.path.exists(settings.AUDIO_DIR):
     app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
 
-# -----------------------
-# WEBSOCKET LOG STREAM
-# -----------------------
+
+# =====================================================
+# ROUTES
+# =====================================================
+
+@app.get("/")
+def root():
+    return {
+        "status": "ONLINE",
+        "project": settings.PROJECT_NAME,
+        "version": settings.VERSION
+    }
+
+
+@app.post(f"{settings.API_PREFIX}/execute")
+def execute_mission(payload: MissionRequest):
+    sys_log("MISSION_RECEIVED", payload.command)
+
+    # 🔐 Security check
+    if not security.validate(payload.command):
+        return {
+            "status": "BLOCKED",
+            "reason": "Security policy violation"
+        }
+
+    result = fusion.process(
+        cmd=payload.command,
+        persona=payload.persona
+    )
+
+    # 🔊 Optional audio generation
+    if audio_engine:
+        try:
+            audio_path = audio_engine.speak(result["text"], payload.persona)
+            result["audio"] = audio_path
+        except Exception as e:
+            sys_log("AUDIO_FAIL", str(e))
+
+    return result
+
+
+# =====================================================
+# WEBSOCKET (LIVE STREAM)
+# =====================================================
 @app.websocket("/ws/logs")
-async def log_stream(ws: WebSocket):
-    await streamer.connect(ws)
+async def websocket_logs(ws: WebSocket):
+    await ws.accept()
+    streamer.connect(ws)
+
     try:
         while True:
             await ws.receive_text()
     except WebSocketDisconnect:
         streamer.disconnect(ws)
 
-# -----------------------
-# AUTH MODEL
-# -----------------------
-class LoginRequest(BaseModel):
-    password: str
 
-# -----------------------
-# ROOT
-# -----------------------
-@app.get("/")
-def root():
+# =====================================================
+# HEALTH CHECK
+# =====================================================
+@app.get("/health")
+def health():
     return {
-        "system": "FTM-2077",
-        "status": "ONLINE",
+        "status": "OK",
         "god_mode": settings.GOD_MODE
     }
-
-# -----------------------
-# LOGIN
-# -----------------------
-@app.post("/auth/login")
-async def login(req: LoginRequest):
-    res = security.login(req.password)
-
-    if res.get("status") == "SUCCESS" and res.get("mode") == "GOD":
-        settings.GOD_MODE = True
-        await streamer.broadcast("⚡ GOD MODE ACTIVATED", "GOD")
-
-    return res
-
-# -----------------------
-# CORE EXECUTION
-# -----------------------
-@app.post(f"{settings.API_PREFIX}/execute")
-async def execute(req: MissionRequest):
-    sys_log.log("CORE", f"CMD: {req.command} [{req.persona}]")
-    await streamer.broadcast(f"Processing: {req.command}", "CORE")
-
-    # 1. Fusion Engine
-    result = fusion.process(req.command, req.persona)
-
-    # 2. Audio (optional)
-    if audio_engine:
-        try:
-            result["audio"] = audio_engine.generate_voice(
-                result.get("analysis", ""),
-                req.persona
-            )
-        except Exception as e:
-            sys_log.log("AUDIO", f"Audio failed: {e}")
-
-    # 3. Report + Cloud upload (optional)
-    if report_engine:
-        try:
-            rep = report_engine.create_mission_report(result)
-            result["report_local"] = rep["path"]
-
-            if vultr:
-                cloud = vultr.upload_file(
-                    rep["path"],
-                    f"reports/{rep['report_id']}.json"
-                )
-                if cloud:
-                    result["cloud_report"] = cloud
-                    await streamer.broadcast("Report uploaded to cloud", "CLOUD")
-        except Exception as e:
-            sys_log.log("REPORT", f"Report failed: {e}")
-
-    await streamer.broadcast(
-        f"Done. Probability: {result.get('probability', 0)}%",
-        "AI"
-    )
-
-    return result
-
-# -----------------------
-# TOGGLE GOD MODE
-# -----------------------
-@app.post(f"{settings.API_PREFIX}/godmode")
-async def toggle_god(key: str):
-    if settings.validate_god_key(key):
-        settings.GOD_MODE = not settings.GOD_MODE
-        await streamer.broadcast(f"GOD MODE: {settings.GOD_MODE}", "GOD")
-        return {"status": "SUCCESS", "god_mode": settings.GOD_MODE}
-
-    return {"status": "ERROR"}
-
-# -----------------------
-# LOCAL DEV SUPPORT
-# -----------------------
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "backend.main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        reload=True
-    )
