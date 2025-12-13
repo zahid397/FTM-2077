@@ -1,144 +1,150 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
------------------------
+# -----------------------
+# SIMPLE SETTINGS (NO PYDANTIC DRAMA)
+# -----------------------
+PROJECT_NAME = "FTM-2077 OMEGA"
+VERSION = "2.0.77"
+API_PREFIX = "/api"
 
-LOAD SETTINGS
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+AUDIO_DIR = os.path.join(BASE_DIR, "audio")
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
------------------------
-
-from backend.config import settings
-
------------------------
-
-INTERNAL MODULES
-
------------------------
-
-from backend.models.mission_model import MissionRequest
-from backend.utils.logger import sys_log
-from backend.utils.log_stream import streamer
-from backend.core.fusion_engine import fusion
-from backend.services.security_engine import security
-
------------------------
-
-OPTIONAL MODULES (SAFE)
-
------------------------
-
-try:
-from backend.services.audio_engine import audio_engine
-except Exception:
-audio_engine = None
-
-try:
-from backend.services.vultr_storage import vultr
-except Exception:
-vultr = None
-
-=====================================================
-
-FASTAPI APP INIT
-
-=====================================================
-
-app = FastAPI(
-title=settings.PROJECT_NAME,
-version=settings.VERSION
-)
-
------------------------
-
-CORS (OPEN FOR NOW)
-
------------------------
+# -----------------------
+# FASTAPI APP INIT
+# -----------------------
+app = FastAPI(title=PROJECT_NAME, version=VERSION)
 
 app.add_middleware(
-CORSMiddleware,
-allow_origins=[""],
-allow_credentials=True,
-allow_methods=[""],
-allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
------------------------
-
-STATIC AUDIO SERVING
-
------------------------
-
-if os.path.exists(settings.AUDIO_DIR):
-app.mount("/audio", StaticFiles(directory=settings.AUDIO_DIR), name="audio")
-
-=====================================================
-
-ROUTES
-
-=====================================================
-
+# -----------------------
+# ROOT
+# -----------------------
 @app.get("/")
 def root():
-return {
-"status": "ONLINE",
-"project": settings.PROJECT_NAME,
-"version": settings.VERSION
-}
+    return {"status": "ONLINE", "project": PROJECT_NAME, "version": VERSION}
 
-@app.post(f"{settings.API_PREFIX}/execute")
-def execute_mission(payload: MissionRequest):
-sys_log("MISSION_RECEIVED", payload.command)
-
-# 🔐 Security check  
-if not security.validate(payload.command):  
-    return {  
-        "status": "BLOCKED",  
-        "reason": "Security policy violation"  
-    }  
-
-result = fusion.process(  
-    cmd=payload.command,  
-    persona=payload.persona  
-)  
-
-# 🔊 Optional audio generation  
-if audio_engine:  
-    try:  
-        audio_path = audio_engine.speak(result["text"], payload.persona)  
-        result["audio"] = audio_path  
-    except Exception as e:  
-        sys_log("AUDIO_FAIL", str(e))  
-
-return result
-
-=====================================================
-
-WEBSOCKET (LIVE STREAM)
-
-=====================================================
-
-@app.websocket("/ws/logs")
-async def websocket_logs(ws: WebSocket):
-await ws.accept()
-streamer.connect(ws)
-
-try:  
-    while True:  
-        await ws.receive_text()  
-except WebSocketDisconnect:  
-    streamer.disconnect(ws)
-
-=====================================================
-
-HEALTH CHECK
-
-=====================================================
-
+# -----------------------
+# HEALTH
+# -----------------------
 @app.get("/health")
 def health():
-return {
-"status": "OK",
-"god_mode": settings.GOD_MODE
+    return {"status": "OK"}
+
+# -----------------------
+# API EXECUTE (DEMO)
+# -----------------------
+@app.post(f"{API_PREFIX}/execute")
+def execute(payload: dict):
+    cmd = payload.get("command", "").strip()
+    persona = payload.get("persona", "JARVIS")
+
+    if not cmd:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "ERROR", "reason": "Command empty"}
+        )
+
+    # Demo response (replace with fusion engine later)
+    return {
+        "status": "SUCCESS",
+        "persona": persona,
+        "text": f"[{persona}] Executed command: {cmd}"
+    }
+
+# -----------------------
+# INLINE UI (HTML + JS)
+# -----------------------
+@app.get("/ui", response_class=HTMLResponse)
+def ui():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FTM-2077</title>
+  <meta charset="utf-8"/>
+  <style>
+    body {
+      background: #000;
+      color: #00ffcc;
+      font-family: monospace;
+      padding: 20px;
+    }
+    button {
+      background: #00ffcc;
+      color: #000;
+      border: none;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    input {
+      background: #111;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 8px;
+      width: 300px;
+    }
+    pre {
+      margin-top: 16px;
+      background: #111;
+      padding: 12px;
+      border: 1px solid #00ffcc;
+    }
+  </style>
+</head>
+<body>
+
+<h1>FTM-2077 OMEGA</h1>
+
+<input id="cmd" placeholder="Enter command..." />
+<button onclick="run()">EXECUTE</button>
+
+<pre id="out"></pre>
+
+<script>
+async function run() {
+  const cmd = document.getElementById("cmd").value;
+
+  const res = await fetch("/api/execute", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      command: cmd,
+      persona: "JARVIS"
+    })
+  });
+
+  const data = await res.json();
+  document.getElementById("out").innerText =
+    JSON.stringify(data, null, 2);
 }
+</script>
+
+</body>
+</html>
+"""
+
+# -----------------------
+# WEBSOCKET (OPTIONAL)
+# -----------------------
+@app.websocket("/ws")
+async def ws(ws: WebSocket):
+    await ws.accept()
+    try:
+        while True:
+            msg = await ws.receive_text()
+            await ws.send_text(f"ACK: {msg}")
+    except WebSocketDisconnect:
+        pass
