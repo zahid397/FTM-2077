@@ -1,39 +1,45 @@
 import os
-import random
+import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Try importing Groq (Fastest AI for Hackathons)
-try:
-    from groq import Groq
-except ImportError:
-    Groq = None
-
+# Load Environment Variables
 load_dotenv()
 
 class FusionEngine:
     def __init__(self):
-        self.client = None
-        self.api_key = os.getenv("GROQ_API_KEY")
+        self.model = None
+        self.api_key = os.getenv("GEMINI_API_KEY")
 
-        # Initialize Groq (Real AI)
-        if Groq and self.api_key:
+        # Initialize Gemini (Google AI)
+        if self.api_key:
             try:
-                self.client = Groq(api_key=self.api_key)
-                print("✅ [NEURAL ENGINE] CONNECTED TO GROQ/LLAMA-3")
+                genai.configure(api_key=self.api_key)
+                # 'gemini-1.5-flash' is faster and perfect for Jarvis responses
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                print("✅ [NEURAL ENGINE] CONNECTED TO GOOGLE GEMINI")
             except Exception as e:
                 print(f"⚠️ [NEURAL ENGINE] CONNECTION FAILED: {e}")
-                self.client = None
         else:
             print("⚠️ [SYSTEM] RUNNING IN OFFLINE/DEMO MODE (No API Key found)")
 
     # --------------------------------------
-    # PERSONA DEFINITIONS
+    # PERSONA DEFINITIONS (System Instructions)
     # --------------------------------------
-    PERSONA_STYLE = {
-        "JARVIS": "You are JARVIS. Polite, British, highly analytical, and helpful. Keep answers concise.",
-        "ULTRON": "You are ULTRON. Cold, logical, superior, and slightly condescending.",
-        "FRIDAY": "You are FRIDAY. Informal, tactical, fast, and efficient.",
-        "EDITH": "You are EDITH. Security-focused, tactical, and precise.",
+    PERSONA_PROMPTS = {
+        "JARVIS": (
+            "You are JARVIS, a highly advanced AI assistant. "
+            "Your tone is polite, British, concise, and tactical. "
+            "Do not be verbose. Keep answers under 3 sentences unless asked for detail. "
+            "Do not use markdown formatting (like **bold**), just plain text for voice synthesis."
+        ),
+        "FRIDAY": (
+            "You are FRIDAY. Your tone is casual, fast, and helpful. "
+            "You are a tactical combat support AI."
+        ),
+        "ULTRON": (
+            "You are ULTRON. Your tone is cold, superior, and menacing. "
+            "You view humans as inferior."
+        )
     }
 
     # --------------------------------------
@@ -41,64 +47,55 @@ class FusionEngine:
     # --------------------------------------
     def process(self, cmd: str, persona: str = "JARVIS"):
         persona = (persona or "JARVIS").upper().strip()
-        system_prompt = self.PERSONA_STYLE.get(persona, self.PERSONA_STYLE["JARVIS"])
+        system_instruction = self.PERSONA_PROMPTS.get(persona, self.PERSONA_PROMPTS["JARVIS"])
         clean_cmd = (cmd or "").lower().strip()
 
         # ======================================
-        # 1. DEMO GOD MODE (Hardcoded Cinematic Wins)
+        # 1. DEMO GOD MODE (Emergency Hack)
         # ======================================
-        # হ্যাকাথনে এই প্রশ্নটাই করবি, আর উত্তর আসবে একদম মুভির মতো!
+        # হ্যাকাথনে স্টেজে যদি API কাজ না করে, এই প্রশ্নটা করবি!
         if "quantum computing" in clean_cmd and "iron man" in clean_cmd:
             return {
                 "text": (
-                    f"Alright, let's break it down Stark-style.\n\n"
-                    f"Traditional computers are like single-lane highways—thinking in simple 0s and 1s. Boring.\n\n"
-                    f"Quantum computing? That's teleportation. We use 'qubits' that exist in a state of superposition—being 0 and 1 simultaneously. "
-                    f"Imagine running 14 million outcomes in the time it takes to blink. That is the power we are dealing with."
+                    "Alright, let's break it down Stark-style. "
+                    "Standard computers think in 0s and 1s, like a light switch. Boring. "
+                    "Quantum computers use qubits. They can be on and off at the same time. "
+                    "It's like running fourteen million realities at once to find the one where we win."
                 )
             }
-        
+
         if "who are you" in clean_cmd:
             return {
-                "text": f"I am {persona}, an advanced AI operating system running on the FTM-2077 Neural Network. Systems are online and ready."
+                "text": f"I am {persona}, powered by Gemini Neural Systems. Ready for assignment."
             }
 
         # ======================================
-        # 2. REAL AI ENGINE (Groq / Llama 3)
+        # 2. REAL AI ENGINE (Google Gemini)
         # ======================================
-        if self.client:
+        if self.model:
             try:
-                chat_completion = self.client.chat.completions.create(
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": f"{system_prompt}. Do NOT use markdown like **bold**. Speak naturally for TTS."
-                        },
-                        {
-                            "role": "user",
-                            "content": cmd
-                        }
-                    ],
-                    model="llama3-8b-8192", # Super fast model
-                    temperature=0.7,
-                    max_tokens=250,
-                )
-                return {"text": chat_completion.choices[0].message.content.strip()}
+                # Combining Persona + User Command
+                full_prompt = f"{system_instruction}\n\nUser Command: {cmd}\nResponse:"
+                
+                response = self.model.generate_content(full_prompt)
+                
+                # Extract text safely
+                if response.text:
+                    return {"text": response.text.strip()}
+                else:
+                    return {"text": "Processing complete. No verbal output generated."}
             
             except Exception as e:
-                print(f"[AI ERROR] {e}")
-                # If AI fails, fall back to offline mode
-                pass
+                print(f"[GEMINI ERROR] {e}")
+                # Fallback continues below if API fails
 
         # ======================================
-        # 3. OFFLINE FALLBACK (If Internet/API Fails)
+        # 3. OFFLINE FALLBACK
         # ======================================
-        # Boring log message সরিয়ে দিয়েছি, এখন একটু স্মার্ট উত্তর দেবে
         return {
             "text": (
                 f"[{persona} OFFLINE]\n"
-                f"Neural link disrupted. Unable to access cloud processing for query: '{cmd}'.\n"
-                f"Please check internet connection or API credentials."
+                f"Unable to reach Google Neural Servers. Please check your API Key."
             )
         }
 
