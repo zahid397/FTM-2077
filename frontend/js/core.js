@@ -1,8 +1,7 @@
 // ================================
 // CONFIG
 // ================================
-const API = "https://ftm-2077.onrender.com"; 
-// 🔧 backend root ( /api নিজে যোগ হবে )
+const API = "https://ftm-2077.onrender.com"; // backend root
 
 // ================================
 // AUDIO SETUP (GLOBAL)
@@ -11,9 +10,9 @@ const voicePlayer = document.getElementById("voicePlayer");
 let audioUnlocked = false;
 
 voicePlayer.preload = "auto";
-voicePlayer.setAttribute("playsinline", "true"); // 🔧 iOS fix
+voicePlayer.setAttribute("playsinline", "true"); // iOS fix
 
-// 🔓 HARD AUDIO UNLOCK (Mobile fix)
+// 🔓 HARD AUDIO UNLOCK (Mobile-safe)
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
@@ -21,21 +20,21 @@ function unlockAudio() {
     const silentWav =
         "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
-    voicePlayer.src = silentWav;
-    voicePlayer.load();
-
-    voicePlayer.play()
-        .then(() => {
+    try {
+        voicePlayer.src = silentWav;
+        voicePlayer.load();
+        voicePlayer.play().then(() => {
             voicePlayer.pause();
             voicePlayer.currentTime = 0;
             console.log("🔊 Audio unlocked");
-        })
-        .catch(() => {});
+        });
+    } catch (_) {}
 }
 
-// User interaction needed once
-document.addEventListener("click", unlockAudio, { once: true });
-document.addEventListener("touchstart", unlockAudio, { once: true });
+// user interaction (only once)
+["click", "touchstart"].forEach(evt =>
+    document.addEventListener(evt, unlockAudio, { once: true })
+);
 
 // ================================
 // UNLOCK SYSTEM (UI ONLY)
@@ -45,21 +44,24 @@ function unlockSystem() {
     const key = keyInput.value.trim();
 
     if (!key) {
-        alert("Enter access key");
+        alert("⚠️ Enter access key");
         return;
     }
 
-    if (key === "OMEGA-777") {
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("system-ui").style.display = "flex";
+    // ⚠️ better than hardcoding everywhere
+    const VALID_KEY = "OMEGA-777";
 
-        if (typeof bootFace === "function") bootFace();
-        unlockAudio(); // 🔧 ensure audio ready
+    if (key !== VALID_KEY) {
+        alert("❌ Invalid Key");
+        keyInput.value = "";
         return;
     }
 
-    alert("Invalid Key");
-    keyInput.value = "";
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("system-ui").style.display = "flex";
+
+    unlockAudio();
+    if (typeof bootFace === "function") bootFace();
 }
 
 // ================================
@@ -75,7 +77,6 @@ async function sendMission() {
 
     output.textContent += `\n\n> ${text}`;
     input.value = "";
-
     scrollBox.scrollTop = scrollBox.scrollHeight;
 
     try {
@@ -89,19 +90,24 @@ async function sendMission() {
         });
 
         if (!res.ok) {
-            throw new Error("Server error");
+            throw new Error(`HTTP ${res.status}`);
         }
 
         const data = await res.json();
 
         // ----------------
-        // SHOW OUTPUT
+        // TEXT OUTPUT
         // ----------------
-        output.textContent += `\n\n${JSON.stringify(data, null, 2)}`;
+        if (data.text) {
+            output.textContent += `\n\n${data.text}`;
+        } else {
+            output.textContent += `\n\n${JSON.stringify(data, null, 2)}`;
+        }
+
         scrollBox.scrollTop = scrollBox.scrollHeight;
 
         // ----------------
-        // PLAY VOICE
+        // VOICE OUTPUT
         // ----------------
         if (data.audio) {
             const audioUrl = data.audio.startsWith("http")
@@ -111,16 +117,17 @@ async function sendMission() {
             console.log("🎧 Playing:", audioUrl);
 
             voicePlayer.pause();
+            voicePlayer.currentTime = 0;
             voicePlayer.src = audioUrl;
             voicePlayer.load();
 
             voicePlayer.play().catch(() => {
-                output.textContent += "\n[Tap screen to hear audio]";
+                output.textContent += "\n🔊 Tap anywhere to enable audio";
             });
         }
 
     } catch (err) {
-        console.error(err);
-        output.textContent += "\n❌ ERROR: Backend unreachable";
+        console.error("❌ Mission error:", err);
+        output.textContent += "\n❌ ERROR: Backend unreachable or failed";
     }
 }
