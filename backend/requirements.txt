@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 
-pydantic==1.10.9
+pydantic>=2.0
+pydantic-settings>=2.0
+
 python-dotenv
 requests
 python-multipart
