@@ -4,7 +4,6 @@ from pydantic import BaseSettings, Field
 
 load_dotenv()
 
-
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FTM-2077 OMEGA"
     VERSION: str = "2.0.77"
@@ -39,6 +38,5 @@ class Settings(BaseSettings):
             self.CACHE_DIR,
         ):
             os.makedirs(path, exist_ok=True)
-
 
 settings = Settings()
