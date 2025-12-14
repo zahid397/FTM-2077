@@ -3,94 +3,120 @@
 <head>
 <meta charset="UTF-8" />
 <title>FTM-2077 OMEGA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
-/* ===== RESET ===== */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ================= SYSTEM STYLES ================= */
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
-/* ===== BODY ===== */
 body {
+  margin: 0;
   background: black;
   color: #00ff00;
-  font-family: monospace;
-  overflow: hidden;
+  font-family: 'VT323', monospace; /* Cyberpunk Font */
   height: 100vh;
+  overflow: hidden;
+  font-size: 18px;
 }
 
-/* ===== MATRIX ===== */
 #matrix {
   position: fixed;
   inset: 0;
   z-index: -1;
-  opacity: 0.6;
+  opacity: 0.4; /* Slight fade so text is readable */
 }
 
-/* ===== LOGIN ===== */
-#login-screen {
-  position: absolute;
-  inset: 0;
+/* MAIN LAYOUT */
+#system-ui {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
-#login-screen input {
-  background: black;
-  color: #00ff00;
-  border: 2px solid #00ff00;
-  padding: 10px;
-  width: 260px;
-}
-
-#login-screen button {
-  background: black;
-  color: #00ff00;
-  border: 2px solid #00ff00;
-  padding: 10px;
-  cursor: pointer;
-}
-
-#loginError {
-  color: #00ff00;
-  opacity: 0;
-}
-
-/* ===== SYSTEM UI ===== */
-#system-ui {
-  display: none;
   height: 100vh;
-  padding: 10px;
-  gap: 10px;
+  padding: 20px;
+  box-sizing: border-box;
+  z-index: 10;
+  position: relative;
 }
 
+/* HEADER */
+.header {
+  border-bottom: 2px solid #00ff00;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  text-shadow: 0 0 5px #00ff00;
+}
+
+/* OUTPUT BOX */
 .output-box {
   flex: 1;
-  border: 2px solid #00ff00;
-  padding: 10px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  background: rgba(0, 20, 0, 0.6);
+  padding: 15px;
   overflow-y: auto;
-  box-shadow: 0 0 12px rgba(0,255,0,0.25);
+  margin-bottom: 15px;
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1);
 }
 
-.input-box textarea {
-  width: 100%;
-  height: 80px;
-  background: black;
-  color: #00ff00;
+/* Custom Scrollbar */
+.output-box::-webkit-scrollbar { width: 8px; }
+.output-box::-webkit-scrollbar-thumb { background: #00ff00; }
+.output-box::-webkit-scrollbar-track { background: #001100; }
+
+pre {
+  white-space: pre-wrap; /* Wrap text */
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* INPUT AREA */
+.input-box {
   border: 2px solid #00ff00;
+  padding: 5px;
+  background: black;
+  display: flex;
+  flex-direction: column;
+}
+
+textarea {
+  width: 100%;
+  height: 60px;
+  background: transparent;
+  color: #00ff00;
+  border: none;
+  resize: none;
+  outline: none;
+  font-family: 'VT323', monospace;
+  font-size: 20px;
   padding: 10px;
+  box-sizing: border-box;
 }
 
-.input-box button {
+button {
   width: 100%;
-  margin-top: 8px;
-  background: black;
+  background: #003300;
   color: #00ff00;
-  border: 2px solid #00ff00;
+  border: none;
+  border-top: 1px solid #00ff00;
   padding: 10px;
   cursor: pointer;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  transition: 0.2s;
 }
+
+button:hover {
+  background: #00ff00;
+  color: black;
+  font-weight: bold;
+}
+
+/* UTILS */
+.blink { animation: blinker 1s linear infinite; }
+@keyframes blinker { 50% { opacity: 0; } }
+
+.user-msg { color: #ccffcc; margin-top: 10px; border-top: 1px dashed #333; padding-top: 5px; }
+.ai-msg { color: #00ff00; margin-bottom: 10px; font-weight: bold; }
+.error-msg { color: #ff3333; }
 </style>
 </head>
 
@@ -98,111 +124,182 @@ body {
 
 <canvas id="matrix"></canvas>
 
-<!-- 🔐 LOGIN -->
-<div id="login-screen">
-  <h2>FTM-2077 ACCESS</h2>
-  <input id="godKey" placeholder="ENTER ACCESS KEY" />
-  <div id="loginError"></div>
-  <button onclick="unlockSystem()">UNLOCK</button>
-</div>
-
-<!-- 🖥️ SYSTEM -->
 <div id="system-ui">
-  <h3>NEURAL TERMINAL</h3>
+  <div class="header">
+    <span>FTM-2077 OMEGA // OS v3.0</span>
+    <span id="status">ONLINE</span>
+  </div>
 
-  <div class="output-box">
-    <pre id="missionOutput">Awaiting command...</pre>
+  <div class="output-box" id="scrollContainer">
+    <pre id="missionOutput">
+Initializing Neural Link...
+Connection Established.
+System: ONLINE.
+Awaiting directives...
+</pre>
   </div>
 
   <div class="input-box">
-    <textarea id="missionInput" placeholder="Enter command..."></textarea>
-    <button onclick="sendMission()">EXECUTE</button>
+    <textarea id="missionInput" placeholder="Enter command protocol..."></textarea>
+    <button onclick="sendMission()">EXECUTE [ENTER]</button>
   </div>
+
 </div>
 
-<audio id="voicePlayer"></audio>
-
 <script>
-/* =========================
-   CONFIG
-========================= */
-const API = "https://ftm-2077.onrender.com";
+/* ================= 1. CONFIGURATION ================= */
+// তোর Render Backend URL এখানে থাকলো
+const API_URL = "https://ftm-2077.onrender.com/api/execute"; 
+const DEFAULT_PERSONA = "JARVIS";
 
-/* =========================
-   MATRIX BACKGROUND
-========================= */
+/* ================= 2. MATRIX EFFECT ================= */
 const canvas = document.getElementById("matrix");
 const ctx = canvas.getContext("2d");
-function resize(){ canvas.width=innerWidth; canvas.height=innerHeight; }
-window.onresize=resize; resize();
 
-const letters="01FTM2077ΩΔ";
-const drops=Array(Math.floor(canvas.width/20)).fill(1);
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
 
-function drawMatrix(){
-  ctx.fillStyle="rgba(0,0,0,0.05)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#00ff00";
-  ctx.font="15px monospace";
-  drops.forEach((y,i)=>{
-    const t=letters[Math.random()*letters.length|0];
-    ctx.fillText(t,i*20,y*20);
-    if(y*20>canvas.height&&Math.random()>0.975)drops[i]=0;
+const chars = "01FTM2077ΩΔJARVIS";
+const drops = Array(Math.floor(canvas.width / 20)).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = "rgba(0,0,0,0.05)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#00ff00";
+  ctx.font = "15px monospace";
+
+  drops.forEach((y, i) => {
+    const text = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(text, i * 20, y * 20);
+    if (y * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
     drops[i]++;
   });
-  requestAnimationFrame(drawMatrix);
 }
-drawMatrix();
+setInterval(drawMatrix, 50);
 
-/* =========================
-   LOGIN GATE
-========================= */
-let attempts=0;
-const GOD_HASH=btoa("OMEGA-777");
+/* ================= 3. TYPING & SCROLL LOGIC ================= */
+const outputEl = document.getElementById("missionOutput");
+const scrollContainer = document.getElementById("scrollContainer");
+let isTyping = false;
 
-function unlockSystem(){
-  if(attempts>=3){ showError("⏳ Locked"); return; }
-  const key=document.getElementById("godKey").value.trim();
-  if(btoa(key)===GOD_HASH){
-    document.getElementById("login-screen").style.display="none";
-    document.getElementById("system-ui").style.display="block";
-  } else {
-    attempts++;
-    showError("❌ Invalid Key");
+function scrollToBottom() {
+  scrollContainer.scrollTop = scrollContainer.scrollHeight;
+}
+
+function typeWriter(text, callback) {
+  if (isTyping) return;
+  isTyping = true;
+  
+  // Create a span for the new AI response
+  const newSpan = document.createElement("div");
+  newSpan.className = "ai-msg";
+  outputEl.appendChild(newSpan);
+  
+  let i = 0;
+  function type() {
+    if (i < text.length) {
+      if (text.substring(i, i + 1) === '\n') {
+        newSpan.innerHTML += "<br>";
+      } else {
+        newSpan.innerHTML += text.charAt(i);
+      }
+      i++;
+      scrollToBottom(); // Auto scroll while typing
+      setTimeout(type, 20); // Typing speed
+    } else {
+      isTyping = false;
+      if (callback) callback();
+    }
   }
+  type();
 }
 
-function showError(msg){
-  const el=document.getElementById("loginError");
-  el.textContent=msg;
-  el.style.opacity=1;
+/* ================= 4. VOICE ENGINE (JARVIS) ================= */
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel(); // Stop previous speech
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  
+  // Try to find a British Male Voice
+  const jarvisVoice = voices.find(v => 
+    v.name.includes("UK") || v.name.includes("Male") || v.name.includes("Google")
+  ) || voices[0];
+
+  if (jarvisVoice) utterance.voice = jarvisVoice;
+  utterance.pitch = 0.8; 
+  utterance.rate = 1.1;
+
+  window.speechSynthesis.speak(utterance);
 }
 
-document.getElementById("godKey")
- .addEventListener("keydown",e=>{if(e.key==="Enter")unlockSystem();});
+// Ensure voices are loaded
+window.speechSynthesis.onvoiceschanged = () => console.log("Voice Module Loaded");
 
-/* =========================
-   API CALL
-========================= */
-async function sendMission(){
-  const input=document.getElementById("missionInput");
-  const out=document.getElementById("missionOutput");
-  const cmd=input.value.trim();
-  if(!cmd) return;
-  out.textContent+="\n> "+cmd+"\n";
-  input.value="";
-  try{
-    const r=await fetch(`${API}/api/execute`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({ command:cmd, persona:"JARVIS" })
+/* ================= 5. MAIN EXECUTION ================= */
+async function sendMission() {
+  const input = document.getElementById("missionInput");
+  const cmd = input.value.trim();
+  
+  if (!cmd) return;
+  if (isTyping) return; // Wait if already processing
+
+  // Show User Command
+  outputEl.innerHTML += `<div class="user-msg">> ${cmd}</div>`;
+  input.value = ""; // Clear input
+  scrollToBottom();
+
+  // Show "Processing" indicator
+  const loadingDiv = document.createElement("div");
+  loadingDiv.id = "loading";
+  loadingDiv.innerHTML = `<span class="blink">[CONNECTING TO NEURAL NET...]</span>`;
+  outputEl.appendChild(loadingDiv);
+  scrollToBottom();
+
+  try {
+    // Call Backend
+    const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: cmd, persona: DEFAULT_PERSONA })
     });
-    const d=await r.json();
-    out.textContent+=d.text+"\n";
-  }catch{
-    out.textContent+="\nSYSTEM ERROR\n";
+
+    const data = await response.json();
+    
+    // Remove loading indicator
+    outputEl.removeChild(loadingDiv);
+
+    if (data.text) {
+        // Start Typing & Speaking
+        typeWriter(data.text);
+        speak(data.text);
+    } else {
+        outputEl.innerHTML += `<div class="error-msg">ERROR: EMPTY NEURAL RESPONSE</div>`;
+    }
+
+  } catch (error) {
+    console.error(error);
+    const loading = document.getElementById("loading");
+    if(loading) outputEl.removeChild(loading);
+    outputEl.innerHTML += `<div class="error-msg">SYSTEM FAILURE: SERVER UNREACHABLE.<br>System might be sleeping. Try again in 30s.</div>`;
   }
+  
+  scrollToBottom();
 }
+
+/* ================= 6. EVENT LISTENERS ================= */
+// Handle Enter key in Textarea
+document.getElementById("missionInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault(); // Prevent new line
+    sendMission();
+  }
+});
 </script>
 
 </body>
