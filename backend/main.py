@@ -1,32 +1,24 @@
 import os
-import uvicorn
+import random
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 import google.generativeai as genai
+from dotenv import load_dotenv
 
-# -----------------------
-# CONFIG
-# -----------------------
+# =====================================================
+# 1. CONFIG & SETUP
+# =====================================================
+load_dotenv() # Load .env file for local dev
+
 PROJECT_NAME = "FTM-2077 OMEGA"
-VERSION = "2.0.77"
+VERSION = "3.1.0 (SENTIENT)"
 API_PREFIX = "/api"
 
-# 🔑 Gemini API Key (Vercel / Render env)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not GEMINI_API_KEY:
-    print("⚠️ GEMINI_API_KEY not found")
-
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
-
-# -----------------------
-# FASTAPI INIT
-# -----------------------
 app = FastAPI(title=PROJECT_NAME, version=VERSION)
 
+# CORS (Allow Frontend to connect)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,71 +27,97 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -----------------------
-# REQUEST MODEL
-# -----------------------
-class MissionRequest(BaseModel):
-    command: str
-    persona: str = "JARVIS"
+# =====================================================
+# 2. GEMINI NEURAL LINK
+# =====================================================
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL = None
 
-# -----------------------
-# ROOT
-# -----------------------
+if GEMINI_KEY:
+    try:
+        genai.configure(api_key=GEMINI_KEY)
+        # Using 1.5-flash for speed
+        GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+        print("✅ [NEURAL ENGINE] CONNECTED TO GEMINI CLOUD")
+    except Exception as e:
+        print(f"⚠️ [NEURAL ENGINE] CONNECTION FAILED: {e}")
+else:
+    print("⚠️ [SYSTEM] RUNNING ON LOCAL BACKUP POWER (OFFLINE MODE)")
+
+# =====================================================
+# 3. SMART FALLBACK (LOCAL BRAIN)
+# =====================================================
+def get_fallback_response(cmd, persona):
+    """Generates smart responses when Gemini is offline"""
+    cmd = cmd.lower()
+    
+    # Jarvis Style Responses
+    if any(x in cmd for x in ['hi', 'hello', 'wake up']):
+        return f"Greetings. {persona} systems online. Ready for directives."
+    
+    if 'status' in cmd or 'how are you' in cmd:
+        return "Systems operational. Running on backup power. Efficiency at 98%."
+    
+    if 'who are you' in cmd:
+        return f"I am {persona}, an advanced AI operating on the FTM-2077 framework."
+    
+    # The Iron Man Question
+    if 'quantum' in cmd or 'iron man' in cmd:
+        return (
+            "Here's the situation. Standard computers deal in bits—zeros and ones. "
+            "Quantum computing deals in qubits. It's like analyzing 14 million outcomes "
+            "in a single nanosecond. That's how I think."
+        )
+
+    # Generic Cool Responses
+    return random.choice([
+        "Processing command... Done. Protocols updated.",
+        "Analyzing input... Secure connection established.",
+        "Command acknowledged. Running background diagnostics.",
+        "Input received. Systems holding steady.",
+        "Calculations complete. Awaiting further instructions."
+    ])
+
+# =====================================================
+# 4. API ENDPOINTS
+# =====================================================
 @app.get("/")
 def root():
-    return {
-        "status": "ONLINE",
-        "project": PROJECT_NAME,
-        "version": VERSION
-    }
+    return {"status": "ONLINE", "system": PROJECT_NAME, "version": VERSION}
 
-# -----------------------
-# CORE EXECUTE (REAL ANSWER)
-# -----------------------
 @app.post(f"{API_PREFIX}/execute")
-def execute(payload: MissionRequest):
-    cmd = payload.command.strip()
-    persona = payload.persona.upper()
+async def execute(payload: dict):
+    cmd = payload.get("command", "").strip()
+    persona = payload.get("persona", "JARVIS").upper()
 
     if not cmd:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Command cannot be empty"}
-        )
+        return JSONResponse(status_code=400, content={"text": "⚠️ Input stream empty."})
 
-    system_prompt = f"""
-You are {persona}.
-Respond like a real intelligent system.
-No logs, no brackets, no system messages.
-Answer directly like a human.
-"""
+    # --- SYSTEM INSTRUCTION (Make it act like JARVIS) ---
+    system_prompt = (
+        f"You are {persona}, an advanced AI OS. "
+        "Tone: Cool, Tactical, Concise (max 2 sentences). "
+        "Do NOT act like a generic AI. You are a military-grade assistant. "
+        "If asked 'how are you', say 'Systems nominal'."
+    )
 
-    try:
-        response = model.generate_content(
-            system_prompt + "\nUser: " + cmd
-        )
+    # --- TRY REAL AI (GEMINI) ---
+    if GEMINI_MODEL:
+        try:
+            # Async call for better performance
+            response = await GEMINI_MODEL.generate_content_async(
+                f"{system_prompt}\n\nUSER COMMAND: {cmd}\nRESPONSE:"
+            )
+            
+            if response.text:
+                return {"text": response.text.strip()}
+        
+        except Exception as e:
+            print(f"❌ Gemini Error: {e}")
+            # Fallback will trigger below
 
-        return {
-            "status": "SUCCESS",
-            "persona": persona,
-            "text": response.text
-        }
-
-    except Exception as e:
-        return {
-            "status": "ERROR",
-            "message": str(e)
-        }
-
-# -----------------------
-# HEALTH
-# -----------------------
-@app.get("/health")
-def health():
-    return {"status": "OK"}
-
-# -----------------------
-# LOCAL RUN
-# -----------------------
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # --- FALLBACK (OFFLINE/ERROR) ---
+    # This runs if Gemini is missing OR fails
+    fallback_text = get_fallback_response(cmd, persona)
+    return {"text": fallback_text}
+    
